@@ -1,6 +1,6 @@
 ![Deep Research](docs/hero.svg)
 
-# Deep Research
+# Academic Research MCP
 
 **Open-source Deep Research that actually reads the papers.**
 
@@ -50,31 +50,109 @@ One prompt. Six academic databases. Real PDFs. Real citations.
 
 ---
 
+## Prerequisites
+
+### 1. Install Zotero
+
+Download and install [Zotero](https://www.zotero.org/download/) for your platform.
+
+**Linux:**
+
+```bash
+# Download
+curl -sL "https://www.zotero.org/download/client/dl?channel=release&platform=linux-x86_64" -o /tmp/zotero.tar.xz
+
+# Extract to /opt
+sudo tar -xJf /tmp/zotero.tar.xz -C /opt/
+
+# Create symlink
+sudo ln -sf /opt/Zotero_linux-x86_64/zotero /usr/local/bin/zotero
+
+# Create desktop entry
+sudo cp /opt/Zotero_linux-x86_64/zotero.desktop /usr/share/applications/zotero.desktop
+sudo sed -i "s|Exec=.*|Exec=/opt/Zotero_linux-x86_64/zotero %u|" /usr/share/applications/zotero.desktop
+sudo sed -i "s|Icon=.*|Icon=/opt/Zotero_linux-x86_64/icons/icon128.png|" /usr/share/applications/zotero.desktop
+```
+
+**macOS / Windows:** Download from [zotero.org/download](https://www.zotero.org/download/) and run the installer.
+
+### 2. Enable Zotero local API
+
+Open Zotero, go to **Edit > Settings > Advanced** and check **"Allow other applications on this computer to communicate with Zotero"**.
+
+Or add to your Zotero `prefs.js`:
+
+```
+user_pref("extensions.zotero.httpServer.localAPI.enabled", true);
+```
+
+Verify it works:
+
+```bash
+curl http://127.0.0.1:23119/api/users/0/collections
+# Should return [] (empty array) or your collections
+```
+
+### 3. Install Zotero MCP (library management)
+
+[zotero-mcp](https://github.com/54yyyu/zotero-mcp) provides full Zotero library management: search, annotations, notes, PDF import, collection management, and more.
+
+```bash
+uv tool install zotero-mcp-server
+```
+
+This gives you the `zotero-mcp` command. No additional setup needed if Zotero is running with the local API enabled.
+
+### 4. Install uv (if you don't have it)
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+---
+
 ## Get started
 
 ```bash
 git clone https://github.com/aytzey/academic-research-mcp.git
-cd deep-research
+cd academic-research-mcp
 uv venv && source .venv/bin/activate
 uv sync
-cp .env.example .env
+cp .env.example .env    # edit with your email
 uv run deep-research-mcp
 ```
 
-Point your MCP client at it. Start asking questions.
+---
 
-<details>
-<summary><strong>Claude Desktop config</strong></summary>
+## MCP client setup
+
+This project provides two MCP servers that work together:
+
+| Server | What it does |
+|---|---|
+| **academic-research** | Paper discovery, PDF download, deep reading, evidence extraction, Sci-Hub/LibGen |
+| **zotero** | Full Zotero library management: search, annotations, notes, imports, collections |
+
+### Claude Desktop
+
+Add to your `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
-    "deep-research": {
+    "academic-research": {
       "command": "uv",
-      "args": ["--directory", "/path/to/deep-research", "run", "deep-research-mcp"],
+      "args": ["--directory", "/path/to/academic-research-mcp", "run", "deep-research-mcp"],
       "env": {
         "OPENALEX_EMAIL": "you@example.com",
         "UNPAYWALL_EMAIL": "you@example.com",
+        "ZOTERO_LOCAL": "true",
+        "SCIHUB_ENABLED": "false"
+      }
+    },
+    "zotero": {
+      "command": "zotero-mcp",
+      "env": {
         "ZOTERO_LOCAL": "true"
       }
     }
@@ -82,37 +160,73 @@ Point your MCP client at it. Start asking questions.
 }
 ```
 
-Full config: [examples/claude-desktop.mcp.json](examples/claude-desktop.mcp.json)
-</details>
+### Claude Code
 
-<details>
-<summary><strong>Codex config</strong></summary>
+```bash
+# Add academic-research server
+claude mcp add --scope user academic-research -- uv --directory /path/to/academic-research-mcp run deep-research-mcp
+
+# Add zotero server
+claude mcp add --scope user zotero -- zotero-mcp
+
+# Verify both are connected
+claude mcp list
+```
+
+Then set environment variables in `~/.claude.json` under each server's `env` block:
+
+```json
+{
+  "academic-research": {
+    "env": {
+      "OPENALEX_EMAIL": "you@example.com",
+      "UNPAYWALL_EMAIL": "you@example.com",
+      "ZOTERO_LOCAL": "true",
+      "SCIHUB_ENABLED": "false"
+    }
+  },
+  "zotero": {
+    "env": {
+      "ZOTERO_LOCAL": "true"
+    }
+  }
+}
+```
+
+### Codex
+
+Add to `~/.codex/config.toml`:
 
 ```toml
-[mcp_servers.deep_research]
+[mcp_servers.academic_research]
 command = "uv"
-args = ["--directory", "/path/to/deep-research", "run", "deep-research-mcp"]
+args = ["--directory", "/path/to/academic-research-mcp", "run", "deep-research-mcp"]
 
-[mcp_servers.deep_research.env]
+[mcp_servers.academic_research.env]
 OPENALEX_EMAIL = "you@example.com"
 UNPAYWALL_EMAIL = "you@example.com"
 ZOTERO_LOCAL = "true"
+SCIHUB_ENABLED = "false"
+
+[mcp_servers.zotero]
+command = "zotero-mcp"
+args = []
+
+[mcp_servers.zotero.env]
+ZOTERO_LOCAL = "true"
 ```
 
-Full config: [examples/codex.config.toml](examples/codex.config.toml)
-</details>
-
-<details>
-<summary><strong>Streamable HTTP mode</strong></summary>
+### Streamable HTTP mode
 
 ```bash
 uv run deep-research-mcp --transport streamable-http --host 127.0.0.1 --port 8000 --path /mcp
 ```
-</details>
 
 ---
 
 ## Tools
+
+### Academic Research MCP
 
 | Tool | What it does |
 |---|---|
@@ -126,8 +240,25 @@ uv run deep-research-mcp --transport streamable-http --host 127.0.0.1 --port 800
 | `search_scihub` | Search Sci-Hub by DOI, title, or keyword (opt-in) |
 | `download_scihub_paper` | Download a paper via Sci-Hub by DOI (opt-in) |
 | `search_libgen` | Supplementary shadow library search |
-| `list_zotero_collections` | Browse your Zotero library |
 | `healthcheck` | Verify all connections are up |
+
+### Zotero MCP ([54yyyu/zotero-mcp](https://github.com/54yyyu/zotero-mcp))
+
+| Tool | What it does |
+|---|---|
+| `zotero_search_items` | Keyword search across your library |
+| `zotero_get_item_fulltext` | Full text of any item |
+| `zotero_get_annotations` | Extract PDF annotations with page numbers |
+| `zotero_get_notes` | Retrieve notes attached to items |
+| `zotero_create_note` | Add notes to items |
+| `zotero_add_by_doi` | Import paper by DOI (auto-fetches metadata + OA PDF) |
+| `zotero_add_by_url` | Import from arXiv, DOI URLs, or webpages |
+| `zotero_create_collection` | Create new collections |
+| `zotero_manage_collections` | Add/remove items from collections |
+| `zotero_get_recent` | Recently added items |
+| `zotero_find_duplicates` | Identify duplicate entries |
+
+Full tool list: [zotero-mcp documentation](https://github.com/54yyyu/zotero-mcp#readme)
 
 ---
 
@@ -195,8 +326,6 @@ SEMANTIC_SCHOLAR_API_KEY=           # optional, higher rate limits
 # Local Zotero integration
 ZOTERO_LOCAL=true
 ZOTERO_LIBRARY_TYPE=user
-ZOTERO_CONNECTOR_URL=http://127.0.0.1:23119/connector/saveItems
-ZOTERO_BRIDGE_URL=http://127.0.0.1:24119
 
 # Web Zotero API (alternative to local)
 ZOTERO_LIBRARY_ID=
@@ -211,12 +340,6 @@ HTTP_PROXY=
 HTTPS_PROXY=
 SSL_CERT_FILE=
 ```
-
-## Local Zotero setup
-
-Set `ZOTERO_LOCAL=true`, make sure Zotero is running with the local API enabled, install a bridge plugin for full write support, and run `healthcheck` to verify.
-
-Tested with Zotero 8.0.4 on Linux (Flatpak). Works with any standard desktop install.
 
 ---
 
