@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for contributing to `zotero-researcher-mcp`.
+Thanks for contributing to `deep-research-mcp`.
 
 ## Development Setup
 

@@ -5,9 +5,9 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - compatibility fallback
     import pymupdf as fitz
 
-from zotero_researcher_mcp.config import Settings
-from zotero_researcher_mcp.models import DownloadedDocument, PaperRecord
-from zotero_researcher_mcp.services.deep_read import DeepReadingService
+from deep_research_mcp.config import Settings
+from deep_research_mcp.models import DownloadedDocument, PaperRecord
+from deep_research_mcp.services.deep_read import DeepReadingService
 
 
 def _settings(tmp_path: Path) -> Settings:

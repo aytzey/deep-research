@@ -1,53 +1,76 @@
 <svg width="1280" height="640" viewBox="0 0 1280 640" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
-  <title id="title">Zotero Researcher MCP</title>
-  <desc id="desc">MCP server for academic discovery, deep PDF reading, and Zotero syncing.</desc>
+  <title id="title">Deep Research</title>
+  <desc id="desc">Open-source Deep Research that actually reads the papers. MCP server for Claude, Codex, and any AI agent.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="640" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#081C2E"/>
-      <stop offset="0.55" stop-color="#123A58"/>
-      <stop offset="1" stop-color="#E6A53A"/>
+      <stop stop-color="#0A0A0F"/>
+      <stop offset="0.45" stop-color="#111827"/>
+      <stop offset="1" stop-color="#1E3A5F"/>
     </linearGradient>
     <linearGradient id="card" x1="220" y1="86" x2="1000" y2="560" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FFFFFF" stop-opacity="0.16"/>
-      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.06"/>
+      <stop stop-color="#FFFFFF" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.04"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="200" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
     </linearGradient>
     <filter id="shadow" x="180" y="60" width="920" height="520" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-      <feDropShadow dx="0" dy="22" stdDeviation="28" flood-color="#02101E" flood-opacity="0.32"/>
+      <feDropShadow dx="0" dy="22" stdDeviation="28" flood-color="#000000" flood-opacity="0.4"/>
+    </filter>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="40" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
     </filter>
   </defs>
 
   <rect width="1280" height="640" fill="url(#bg)"/>
-  <circle cx="1115" cy="118" r="160" fill="#F7C56A" fill-opacity="0.18"/>
-  <circle cx="164" cy="552" r="210" fill="#0F5B78" fill-opacity="0.28"/>
-  <circle cx="1022" cy="540" r="115" fill="#FFFFFF" fill-opacity="0.08"/>
+  <circle cx="1050" cy="130" r="200" fill="#3B82F6" fill-opacity="0.08"/>
+  <circle cx="180" cy="520" r="250" fill="#8B5CF6" fill-opacity="0.06"/>
+  <circle cx="900" cy="500" r="120" fill="#3B82F6" fill-opacity="0.05"/>
 
   <g filter="url(#shadow)">
-    <rect x="220" y="86" width="840" height="468" rx="28" fill="url(#card)" stroke="#FFFFFF" stroke-opacity="0.16"/>
+    <rect x="220" y="86" width="840" height="468" rx="24" fill="url(#card)" stroke="#FFFFFF" stroke-opacity="0.08"/>
   </g>
 
-  <text x="286" y="180" fill="#9DD3FF" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" letter-spacing="2">ACADEMIC AGENT TOOLING</text>
-  <text x="286" y="258" fill="white" font-family="Arial, Helvetica, sans-serif" font-size="66" font-weight="800">Zotero Researcher MCP</text>
-  <text x="286" y="314" fill="#E8F2FA" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="500">Search papers. Read PDFs deeply. Sync results to Zotero.</text>
+  <rect x="286" y="162" width="180" height="36" rx="18" fill="url(#accent)" fill-opacity="0.9"/>
+  <text x="376" y="186" text-anchor="middle" fill="white" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="700" letter-spacing="2">OPEN SOURCE</text>
 
-  <g transform="translate(286 384)">
-    <rect width="188" height="54" rx="27" fill="#F0B24A"/>
-    <text x="94" y="34" text-anchor="middle" fill="#10263A" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="800">OpenAlex</text>
+  <text x="286" y="265" fill="white" font-family="system-ui, -apple-system, sans-serif" font-size="72" font-weight="800" letter-spacing="-2">Deep Research</text>
+  <text x="286" y="320" fill="#94A3B8" font-family="system-ui, -apple-system, sans-serif" font-size="26" font-weight="400">Actually reads the papers. For Claude, Codex, and any MCP client.</text>
+
+  <g transform="translate(286 380)">
+    <rect width="186" height="48" rx="24" fill="#3B82F6" fill-opacity="0.15" stroke="#3B82F6" stroke-opacity="0.3"/>
+    <text x="93" y="31" text-anchor="middle" fill="#93C5FD" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="700">Semantic Scholar</text>
   </g>
-  <g transform="translate(494 384)">
-    <rect width="244" height="54" rx="27" fill="#FFFFFF"/>
-    <text x="122" y="34" text-anchor="middle" fill="#10263A" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="800">Semantic Scholar</text>
+  <g transform="translate(488 380)">
+    <rect width="140" height="48" rx="24" fill="#8B5CF6" fill-opacity="0.15" stroke="#8B5CF6" stroke-opacity="0.3"/>
+    <text x="70" y="31" text-anchor="middle" fill="#C4B5FD" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="700">OpenAlex</text>
   </g>
-  <g transform="translate(758 384)">
-    <rect width="130" height="54" rx="27" fill="#BCE7FF"/>
-    <text x="65" y="34" text-anchor="middle" fill="#10263A" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="800">arXiv</text>
+  <g transform="translate(644 380)">
+    <rect width="100" height="48" rx="24" fill="#06B6D4" fill-opacity="0.15" stroke="#06B6D4" stroke-opacity="0.3"/>
+    <text x="50" y="31" text-anchor="middle" fill="#67E8F9" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="700">arXiv</text>
+  </g>
+  <g transform="translate(760 380)">
+    <rect width="130" height="48" rx="24" fill="#10B981" fill-opacity="0.15" stroke="#10B981" stroke-opacity="0.3"/>
+    <text x="65" y="31" text-anchor="middle" fill="#6EE7B7" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="700">Crossref</text>
   </g>
 
-  <g transform="translate(286 468)">
-    <circle cx="13" cy="13" r="13" fill="#6BDAA3"/>
-    <text x="38" y="20" fill="#F5FBFF" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600">OA PDF resolution</text>
-    <circle cx="292" cy="13" r="13" fill="#6BDAA3"/>
-    <text x="317" y="20" fill="#F5FBFF" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600">Page rendering</text>
-    <circle cx="524" cy="13" r="13" fill="#6BDAA3"/>
-    <text x="549" y="20" fill="#F5FBFF" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600">Local Zotero sync</text>
+  <line x1="286" y1="458" x2="940" y2="458" stroke="#FFFFFF" stroke-opacity="0.06"/>
+
+  <g transform="translate(286 480)">
+    <circle cx="8" cy="8" r="8" fill="#3B82F6"/>
+    <text x="26" y="14" fill="#CBD5E1" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="500">Full PDF reading</text>
+  </g>
+  <g transform="translate(500 480)">
+    <circle cx="8" cy="8" r="8" fill="#8B5CF6"/>
+    <text x="26" y="14" fill="#CBD5E1" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="500">Figure rendering</text>
+  </g>
+  <g transform="translate(714 480)">
+    <circle cx="8" cy="8" r="8" fill="#10B981"/>
+    <text x="26" y="14" fill="#CBD5E1" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="500">Zotero sync</text>
   </g>
 </svg>

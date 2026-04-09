@@ -3,8 +3,8 @@ from __future__ import annotations
 import html
 from pathlib import Path
 
-from zotero_researcher_mcp.config import Settings
-from zotero_researcher_mcp.models import DeepReadArtifact, DownloadedDocument, PaperRecord, slugify, utc_timestamp
+from deep_research_mcp.config import Settings
+from deep_research_mcp.models import DeepReadArtifact, DownloadedDocument, PaperRecord, slugify, utc_timestamp
 
 
 class ReportService:

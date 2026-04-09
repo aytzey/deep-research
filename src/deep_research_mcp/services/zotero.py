@@ -12,9 +12,9 @@ import urllib.request
 import httpx
 from pyzotero import zotero as pyzotero
 
-from zotero_researcher_mcp.config import Settings
-from zotero_researcher_mcp.models import DownloadedDocument, PaperRecord, normalize_doi, normalize_title
-from zotero_researcher_mcp.services.reporting import ReportService
+from deep_research_mcp.config import Settings
+from deep_research_mcp.models import DownloadedDocument, PaperRecord, normalize_doi, normalize_title
+from deep_research_mcp.services.reporting import ReportService
 
 
 class ZoteroService:
@@ -242,7 +242,7 @@ class ZoteroService:
                 template["DOI"] = paper.doi
             if paper.venue:
                 template["publicationTitle"] = paper.venue
-            template["extra"] = f"Imported by zotero-researcher-mcp\nSource: {paper.source}\nSource ID: {paper.source_id}"
+            template["extra"] = f"Imported by deep-research-mcp\nSource: {paper.source}\nSource ID: {paper.source_id}"
 
             response = client.create_items([template])
             item_key = next(iter((response.get("success") or {}).values()), None)
@@ -328,7 +328,7 @@ class ZoteroService:
             "date": str(paper.year) if paper.year else "",
             "url": paper.url or "",
             "tags": [{"tag": f"topic:{topic}"}, {"tag": f"source:{paper.source}"}],
-            "extra": f"Imported by zotero-researcher-mcp\nSource: {paper.source}\nSource ID: {paper.source_id}",
+            "extra": f"Imported by deep-research-mcp\nSource: {paper.source}\nSource ID: {paper.source_id}",
         }
         if paper.doi:
             item["DOI"] = paper.doi

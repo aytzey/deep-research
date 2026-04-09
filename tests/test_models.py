@@ -1,4 +1,4 @@
-from zotero_researcher_mcp.models import PaperRecord, combine_papers
+from deep_research_mcp.models import PaperRecord, combine_papers
 
 
 def test_combine_papers_prefers_more_complete_record() -> None:

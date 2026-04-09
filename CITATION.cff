@@ -1,15 +1,16 @@
 cff-version: 1.2.0
-title: Zotero Researcher MCP
+title: Deep Research MCP
 message: If you use this project in academic work, please cite the repository.
 type: software
 authors:
   - family-names: Sezer
     given-names: Aytug Berk
-repository-code: https://github.com/aytzey/Zotero-Researcher
-url: https://github.com/aytzey/Zotero-Researcher
+repository-code: https://github.com/aytzey/deep-research
+url: https://github.com/aytzey/deep-research
 license: MIT
-version: 0.1.2
+version: 0.2.0
 date-released: 2026-04-09
 abstract: >
-  MCP server for academic discovery, open-access PDF inspection, deep reading,
-  and local Zotero syncing.
+  Open-source Deep Research MCP server. Searches academic databases, downloads
+  open-access PDFs, extracts full text with evidence chunking, renders figures,
+  and syncs everything to Zotero.

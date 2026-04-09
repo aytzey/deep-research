@@ -1,12 +1,12 @@
 {
   "mcpServers": {
-    "zotero-researcher": {
+    "deep-research": {
       "command": "uv",
       "args": [
         "--directory",
-        "/absolute/path/to/Zotero_Researcher",
+        "/absolute/path/to/deep-research",
         "run",
-        "zotero-researcher-mcp"
+        "deep-research-mcp"
       ],
       "env": {
         "OPENALEX_EMAIL": "you@example.com",

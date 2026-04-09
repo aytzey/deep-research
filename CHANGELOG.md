@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 - 2026-04-09
+
+- rebranded to **Deep Research MCP**
+- renamed Python package from `zotero-researcher-mcp` to `deep-research-mcp`
+- rewrote README for clarity and discoverability
+- updated all documentation, configs, and agent guides
+- bumped version across the board
+
 ## 0.1.2 - 2026-04-09
 
 - added demo GIF and publishing guide

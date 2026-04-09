@@ -78,7 +78,7 @@ class Settings:
 
 def load_settings() -> Settings:
     load_dotenv()
-    data_dir = Path(os.getenv("ZOTERO_RESEARCHER_DATA_DIR", "./data")).expanduser().resolve()
+    data_dir = Path(os.getenv("DEEP_RESEARCH_DATA_DIR", os.getenv("ZOTERO_RESEARCHER_DATA_DIR", "./data"))).expanduser().resolve()
     data_dir.mkdir(parents=True, exist_ok=True)
     (data_dir / "downloads").mkdir(parents=True, exist_ok=True)
     (data_dir / "reports").mkdir(parents=True, exist_ok=True)

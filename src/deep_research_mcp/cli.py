@@ -3,13 +3,13 @@ from __future__ import annotations
 import argparse
 import logging
 
-from zotero_researcher_mcp.server import mcp
+from deep_research_mcp.server import mcp
 
 
 def main() -> None:
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
-    parser = argparse.ArgumentParser(description="Run Zotero Researcher MCP server.")
+    parser = argparse.ArgumentParser(description="Run Deep Research MCP server.")
     parser.add_argument("--transport", choices=["stdio", "streamable-http", "sse"], default="stdio")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)

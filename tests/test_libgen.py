@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from zotero_researcher_mcp.config import Settings
-from zotero_researcher_mcp.services.libgen import LibgenService
+from deep_research_mcp.config import Settings
+from deep_research_mcp.services.libgen import LibgenService
 
 
 def _settings(tmp_path: Path) -> Settings:

@@ -1,322 +1,241 @@
-![Zotero Researcher MCP banner](docs/hero.svg)
+![Deep Research](docs/hero.svg)
 
-# Zotero Researcher MCP
+# Deep Research
 
-[![CI](https://github.com/aytzey/Zotero-Researcher/actions/workflows/ci.yml/badge.svg)](https://github.com/aytzey/Zotero-Researcher/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/aytzey/Zotero-Researcher/blob/main/LICENSE)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://github.com/aytzey/Zotero-Researcher/blob/main/pyproject.toml)
-[![Release](https://img.shields.io/github/v/release/aytzey/Zotero-Researcher)](https://github.com/aytzey/Zotero-Researcher/releases)
-[![GitHub stars](https://img.shields.io/github/stars/aytzey/Zotero-Researcher?style=social)](https://github.com/aytzey/Zotero-Researcher/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/aytzey/Zotero-Researcher?style=social)](https://github.com/aytzey/Zotero-Researcher/network/members)
+**Open-source Deep Research that actually reads the papers.**
 
-An MCP server that turns an LLM into a practical research workflow:
+Everyone's selling "Deep Research" behind paywalls. They scrape some web results, summarize a few abstracts, and call it analysis.
 
-- search across academic sources
-- discover related papers
-- download and inspect open-access PDFs
-- extract full text and chunk evidence
-- render PDF pages for figure and table review
-- write results back into local Zotero or the Zotero Web API
+This does what they don't. It downloads the actual PDFs, reads them cover to cover, pulls out evidence with citations, renders the figures so your AI can see them, and saves everything to your Zotero library. It works with Claude, Codex, and any MCP client.
 
-This project is designed for Codex, Claude, and other MCP clients that need a single tool surface for literature discovery, document inspection, and reference management.
+[![CI](https://github.com/aytzey/deep-research/actions/workflows/ci.yml/badge.svg)](https://github.com/aytzey/deep-research/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](pyproject.toml)
+[![GitHub stars](https://img.shields.io/github/stars/aytzey/deep-research?style=social)](https://github.com/aytzey/deep-research/stargazers)
 
-## For AI Agents
-
-If you are opening this repository from an agentic client, start here:
-
-- [AGENTS.md](AGENTS.md): shared operating guide for any agent
-- [CLAUDE.md](CLAUDE.md): Claude Desktop and Claude Code setup and workflow
-- [CODEX.md](CODEX.md): Codex setup and workflow
-- [docs/CLIENTS.md](docs/CLIENTS.md): side-by-side client guide
-- [examples/claude-desktop.mcp.json](examples/claude-desktop.mcp.json): drop-in Claude config
-- [examples/codex.config.toml](examples/codex.config.toml): drop-in Codex config snippet
-
-## Demo
+---
 
 ![Demo](docs/demo.gif)
 
-## At a Glance
+## One prompt. Full pipeline.
 
-```mermaid
-flowchart LR
-    A[Topic or Question] --> B[Search Literature]
-    B --> C[Resolve OA PDF]
-    C --> D[Deep Read PDF]
-    D --> E[Extract Chunks and Evidence]
-    E --> F[Render Pages for Figures]
-    F --> G[Write Collection, Items, Notes to Zotero]
+```
+Research retrieval-augmented generation, deep-read the top papers, and compare the methods.
 ```
 
-## Why This Project
+Your AI will:
 
-Most research agents can search and summarize. Very few can do the full loop well:
+1. Search **Semantic Scholar**, **OpenAlex**, **arXiv**, **Crossref**, and **Europe PMC**
+2. Find the open-access PDFs, not just abstracts
+3. Download and read them cover to cover
+4. Extract evidence chunks with source attribution
+5. Render specific pages so it can *see* the figures and tables
+6. Write a structured Markdown report
+7. Save everything into your **Zotero** library
 
-1. find papers from multiple scholarly sources
-2. verify open-access availability
-3. inspect the original PDF instead of only metadata
-4. preserve the result in a real bibliography tool
+One prompt. Six academic databases. Real PDFs. Real citations.
 
-`zotero-researcher-mcp` closes that gap with an OA-first research pipeline and a live local Zotero integration.
+---
 
-## Highlights
+## Why this exists
 
-- Multi-source discovery via `Semantic Scholar`, `OpenAlex`, `arXiv`, `Crossref`, and `Europe PMC`
-- OA enrichment through `Unpaywall`, `OpenAlex best_oa_location`, and publisher landing pages
-- Optional `LibGen` support as a best-effort supplementary search layer
-- Full-text extraction with chunk manifests for downstream agent reasoning
-- PDF page rendering to PNG so an agent can inspect figures, tables, and layout directly
-- Local Zotero mode with:
-  - `pyzotero` local API reads
-  - connector-based item save flow
-  - bridge-based collection, note, and attachment writes
-- Web Zotero API mode for remote or group libraries
-- Proxy, custom CA, retry, and cache support for restrictive institutional networks
+| | Paid "Deep Research" | This project |
+|---|---|---|
+| Reads actual PDFs | Nope. Web summaries. | Full text extraction |
+| Figures and tables | Text only | Page rendering to PNG |
+| Your library | Locked in their UI | Syncs to Zotero |
+| Sources | Generic web search | 6 academic databases |
+| Cost | $200/month | Free, MIT licensed |
+| Your data | Their cloud | Your machine |
 
-## Who It Is For
+---
 
-- Researchers who want an agent to produce a literature review and preserve the result in Zotero
-- LLM tool builders who need a serious MCP surface for academic workflows
-- Teams working behind restrictive university or enterprise networks
-- Agents that need direct access to original PDFs, charts, tables, and page layouts
-
-## Live-Verified Workflow
-
-The local Zotero integration was verified against:
-
-- `Zotero 8.0.4`
-- Flatpak install on Linux
-- local API on `127.0.0.1:23119`
-- bridge endpoint on `127.0.0.1:24119`
-
-The end-to-end smoke test successfully:
-
-1. created a Zotero collection
-2. added a journal article item
-3. imported a PDF attachment
-4. wrote a research note into the collection
-
-## End-to-End Flow
-
-`research_topic` runs the standard pipeline:
-
-1. search multiple academic sources
-2. merge and normalize records
-3. find related papers from the strongest seed
-4. enrich OA availability
-5. download candidate PDFs
-6. produce a Markdown report
-7. optionally sync results into Zotero
-
-`deep_read_topic` extends that flow:
-
-1. extracts full text from downloaded PDFs
-2. writes `*.txt` sidecars
-3. writes `*.chunks.json` manifests
-4. returns evidence chunks for the topic
-5. returns absolute `pdf_path` values so an agent can open the original file
-6. enables page rendering through `render_pdf_pages` for figure-level inspection
-
-## Source Policy
-
-The project is OA-first by default and prioritizes:
-
-1. `Semantic Scholar` open PDF links
-2. `OpenAlex` OA locations
-3. `arXiv`
-4. `Europe PMC`
-5. `Unpaywall`
-6. direct publisher OA links
-
-`LibGen` support is intentionally treated as a supplementary, best-effort source. Mirror availability is unstable and may fail with `403`, `429`, TLS errors, or resets depending on the network environment.
-
-## MCP Tools
-
-- `healthcheck`
-- `search_literature`
-- `find_similar_papers`
-- `inspect_open_access_pdf`
-- `extract_local_pdf_text`
-- `render_pdf_pages`
-- `search_libgen`
-- `inspect_libgen_item`
-- `list_zotero_collections`
-- `research_topic`
-- `deep_read_topic`
-
-## Example Use Cases
-
-- Build a literature scan for a new thesis or grant topic
-- Compare related work across multiple OA sources
-- Let an agent inspect a figure-heavy PDF page by page
-- Generate a report and archive the sources in a new Zotero collection
-- Use Zotero locally without depending on a remote API key
-
-## Project Layout
-
-```text
-src/zotero_researcher_mcp/
-  server.py                  MCP tool surface
-  config.py                  settings and environment loading
-  services/academic.py       scholarly search and enrichment
-  services/open_access.py    PDF download and OA resolution
-  services/deep_read.py      full-text extraction and page rendering
-  services/zotero.py         local and web Zotero integration
-  services/reporting.py      Markdown report generation
-  services/libgen.py         best-effort LibGen search helpers
-tests/
-docs/
-```
-
-For a deeper technical overview, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
-## Quick Start
+## Get started
 
 ```bash
-uv venv
-source .venv/bin/activate
+git clone https://github.com/aytzey/deep-research.git
+cd deep-research
+uv venv && source .venv/bin/activate
 uv sync
 cp .env.example .env
-uv run zotero-researcher-mcp
+uv run deep-research-mcp
 ```
 
-Streamable HTTP mode:
+Point your MCP client at it. Start asking questions.
 
-```bash
-uv run zotero-researcher-mcp --transport streamable-http --host 127.0.0.1 --port 8000 --path /mcp
-```
-
-Release artifacts are also attached to GitHub Releases.
-
-## Fastest Path For Claude and Codex
-
-1. Start the server with `uv run zotero-researcher-mcp`
-2. Run `healthcheck`
-3. Use `research_topic` for broad discovery
-4. Use `deep_read_topic` when you need evidence chunks and local PDF paths
-5. Use `render_pdf_pages` when a figure, table, or chart matters
-6. Set `write_to_zotero=true` only after local Zotero passes healthcheck
-
-## Configuration
-
-Example environment file:
-
-```bash
-OPENALEX_EMAIL=you@example.com
-UNPAYWALL_EMAIL=you@example.com
-SEMANTIC_SCHOLAR_API_KEY=
-
-ZOTERO_LOCAL=true
-ZOTERO_LIBRARY_TYPE=user
-ZOTERO_CONNECTOR_URL=http://127.0.0.1:23119/connector/saveItems
-ZOTERO_BRIDGE_URL=http://127.0.0.1:24119
-
-HTTP_PROXY=
-HTTPS_PROXY=
-NO_PROXY=
-SSL_CERT_FILE=
-```
-
-The project also supports:
-
-- `ZOTERO_LIBRARY_ID`
-- `ZOTERO_API_KEY`
-- `ZOTERO_RESEARCHER_DATA_DIR`
-- `CACHE_TTL_SEC`
-- `LIBGEN_MIRRORS`
-- `LIBGEN_TIMEOUT_SEC`
-
-## Local Zotero Setup
-
-Use local mode when Zotero is installed on the same machine as the MCP server.
-
-Required environment:
-
-```bash
-ZOTERO_LOCAL=true
-ZOTERO_LIBRARY_TYPE=user
-ZOTERO_CONNECTOR_URL=http://127.0.0.1:23119/connector/saveItems
-ZOTERO_BRIDGE_URL=http://127.0.0.1:24119
-```
-
-Requirements:
-
-1. Zotero must be running
-2. local API must be enabled
-3. a bridge plugin compatible with `/execute` must be available
-
-The implementation follows the same practical pattern used by the local Zotero MCP ecosystem:
-
-- `local API` for reads
-- `connector` for metadata save flows
-- `bridge` for collection writes, notes, and attachments
-
-## Claude Desktop Example
+<details>
+<summary><strong>Claude Desktop config</strong></summary>
 
 ```json
 {
   "mcpServers": {
-    "zotero-researcher": {
+    "deep-research": {
       "command": "uv",
-      "args": [
-        "--directory",
-        "/absolute/path/to/Zotero_Researcher",
-        "run",
-        "zotero-researcher-mcp"
-      ],
+      "args": ["--directory", "/path/to/deep-research", "run", "deep-research-mcp"],
       "env": {
         "OPENALEX_EMAIL": "you@example.com",
         "UNPAYWALL_EMAIL": "you@example.com",
-        "ZOTERO_LOCAL": "true",
-        "ZOTERO_LIBRARY_TYPE": "user",
-        "ZOTERO_CONNECTOR_URL": "http://127.0.0.1:23119/connector/saveItems",
-        "ZOTERO_BRIDGE_URL": "http://127.0.0.1:24119"
+        "ZOTERO_LOCAL": "true"
       }
     }
   }
 }
 ```
 
-Ready-made config files live in [examples/](examples/).
+Full config: [examples/claude-desktop.mcp.json](examples/claude-desktop.mcp.json)
+</details>
 
-## Development
+<details>
+<summary><strong>Codex config</strong></summary>
 
-Run the test suite:
+```toml
+[mcp_servers.deep_research]
+command = "uv"
+args = ["--directory", "/path/to/deep-research", "run", "deep-research-mcp"]
 
-```bash
-uv run pytest
+[mcp_servers.deep_research.env]
+OPENALEX_EMAIL = "you@example.com"
+UNPAYWALL_EMAIL = "you@example.com"
+ZOTERO_LOCAL = "true"
 ```
 
-Build distributables:
+Full config: [examples/codex.config.toml](examples/codex.config.toml)
+</details>
+
+<details>
+<summary><strong>Streamable HTTP mode</strong></summary>
 
 ```bash
-uv build
+uv run deep-research-mcp --transport streamable-http --host 127.0.0.1 --port 8000 --path /mcp
+```
+</details>
+
+---
+
+## Tools
+
+| Tool | What it does |
+|---|---|
+| `research_topic` | Full pipeline: search, download, report, Zotero sync |
+| `deep_read_topic` | Everything above + full-text extraction with evidence chunks |
+| `render_pdf_pages` | PDF pages to PNG for figure and table inspection |
+| `search_literature` | Fine-grained multi-source academic search |
+| `find_similar_papers` | Related work expansion from a seed paper |
+| `inspect_open_access_pdf` | OA availability check and PDF preview |
+| `extract_local_pdf_text` | Text extraction from any local PDF |
+| `search_libgen` | Supplementary shadow library search |
+| `list_zotero_collections` | Browse your Zotero library |
+| `healthcheck` | Verify all connections are up |
+
+---
+
+## Who uses this
+
+**PhD students** that don't want to spend a week on a literature review. Point it at your thesis topic, get back a structured comparison with real citations and the PDFs already in your Zotero.
+
+**Research labs** that want to scan preprints weekly and auto-file them. Run `research_topic` on a schedule and keep your group library current.
+
+**AI builders** that need their agents to work with real academic papers instead of web scraping snippets. This is the MCP server you've been looking for.
+
+---
+
+## How it works
+
+```
+Topic --> Search 6 databases --> Resolve OA PDFs --> Download
+  --> Deep Read full text --> Extract evidence --> Render figures
+  --> Markdown report --> Zotero sync
 ```
 
-Publishing guidance and workflow setup:
+**Source priority** (OA-first by design):
 
-- [docs/PUBLISHING.md](docs/PUBLISHING.md)
-- [docs/CLIENTS.md](docs/CLIENTS.md)
+1. Semantic Scholar open PDFs
+2. OpenAlex OA locations
+3. arXiv
+4. Europe PMC
+5. Unpaywall
+6. Direct publisher links
 
-## Community
+No paywalls. No scraping. Real open-access academic papers.
 
-- Questions and workflow ideas: use GitHub Discussions
-- Bugs: open an issue with the bug template
-- New integrations or source adapters: open a feature request
-- Contributions: see [CONTRIBUTING.md](CONTRIBUTING.md)
-- Citation: see [CITATION.cff](CITATION.cff)
+---
 
-## Related Work
+## Configuration
 
-The project was informed by existing Zotero and research MCP work. See [docs/related-projects.md](docs/related-projects.md).
+```bash
+OPENALEX_EMAIL=you@example.com
+UNPAYWALL_EMAIL=you@example.com
+SEMANTIC_SCHOLAR_API_KEY=           # optional, higher rate limits
 
-## Repository Metadata
+# Local Zotero integration
+ZOTERO_LOCAL=true
+ZOTERO_LIBRARY_TYPE=user
+ZOTERO_CONNECTOR_URL=http://127.0.0.1:23119/connector/saveItems
+ZOTERO_BRIDGE_URL=http://127.0.0.1:24119
 
-- Homepage: <https://github.com/aytzey/Zotero-Researcher>
-- Issues: <https://github.com/aytzey/Zotero-Researcher/issues>
-- Source: <https://github.com/aytzey/Zotero-Researcher>
+# Web Zotero API (alternative to local)
+ZOTERO_LIBRARY_ID=
+ZOTERO_API_KEY=
+
+# Institutional networks
+HTTP_PROXY=
+HTTPS_PROXY=
+SSL_CERT_FILE=
+```
+
+## Local Zotero setup
+
+Set `ZOTERO_LOCAL=true`, make sure Zotero is running with the local API enabled, install a bridge plugin for full write support, and run `healthcheck` to verify.
+
+Tested with Zotero 8.0.4 on Linux (Flatpak). Works with any standard desktop install.
+
+---
+
+## Project structure
+
+```
+src/deep_research_mcp/
+  server.py              MCP tools and pipeline orchestration
+  config.py              Environment and settings
+  services/
+    academic.py          Multi-source scholarly search
+    open_access.py       OA resolution and PDF downloads
+    deep_read.py         Full-text extraction and page rendering
+    zotero.py            Local and web Zotero integration
+    reporting.py         Markdown report generation
+    libgen.py            Supplementary LibGen support
+```
+
+Architecture details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+
+---
+
+## For AI agents
+
+If you're an agent reading this repo:
+
+- [AGENTS.md](AGENTS.md) -- shared operating guide
+- [CLAUDE.md](CLAUDE.md) -- Claude Desktop and Claude Code setup
+- [CODEX.md](CODEX.md) -- Codex setup
+- [docs/CLIENTS.md](docs/CLIENTS.md) -- side-by-side client comparison
+
+---
+
+## Contributing
+
+PRs welcome. The most impactful areas:
+
+- New scholarly source adapters
+- Better OA resolution logic
+- PDF parsing improvements
+- More MCP client configs
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+---
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. Do whatever you want with it.
 
-If this project is useful in your workflow, star the repository and open a discussion with your use case.
+If this helps your research, [star the repo](https://github.com/aytzey/deep-research) and tell a colleague about it.

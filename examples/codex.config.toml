@@ -1,8 +1,8 @@
-[mcp_servers.zotero_researcher]
+[mcp_servers.deep_research]
 command = "uv"
-args = ["--directory", "/absolute/path/to/Zotero_Researcher", "run", "zotero-researcher-mcp"]
+args = ["--directory", "/absolute/path/to/deep-research", "run", "deep-research-mcp"]
 
-[mcp_servers.zotero_researcher.env]
+[mcp_servers.deep_research.env]
 OPENALEX_EMAIL = "you@example.com"
 UNPAYWALL_EMAIL = "you@example.com"
 ZOTERO_LOCAL = "true"

@@ -10,8 +10,8 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - compatibility fallback
     import pymupdf as fitz
 
-from zotero_researcher_mcp.config import Settings
-from zotero_researcher_mcp.models import DownloadedDocument, PaperRecord, slugify, utc_timestamp
+from deep_research_mcp.config import Settings
+from deep_research_mcp.models import DownloadedDocument, PaperRecord, slugify, utc_timestamp
 
 
 class OpenAccessService:
@@ -32,7 +32,7 @@ class OpenAccessService:
             follow_redirects=True,
             trust_env=True,
             verify=self.settings.ssl_verify,
-            headers={"User-Agent": "zotero-researcher-mcp/0.1", "Accept": "application/pdf,*/*"},
+            headers={"User-Agent": "deep-research-mcp/0.2", "Accept": "application/pdf,*/*"},
         ) as client:
             for paper in candidates:
                 if len(downloaded) >= max_papers:
@@ -63,7 +63,7 @@ class OpenAccessService:
             follow_redirects=True,
             trust_env=True,
             verify=self.settings.ssl_verify,
-            headers={"User-Agent": "zotero-researcher-mcp/0.1", "Accept": "application/pdf,*/*"},
+            headers={"User-Agent": "deep-research-mcp/0.2", "Accept": "application/pdf,*/*"},
         ) as client:
             path = await self._download_pdf(client, filename_hint, paper)
         return await asyncio.to_thread(self.inspect_local_pdf, paper, path)

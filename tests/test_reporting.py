@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from zotero_researcher_mcp.config import Settings
-from zotero_researcher_mcp.models import DownloadedDocument, PaperRecord
-from zotero_researcher_mcp.services.reporting import ReportService
+from deep_research_mcp.config import Settings
+from deep_research_mcp.models import DownloadedDocument, PaperRecord
+from deep_research_mcp.services.reporting import ReportService
 
 
 def test_render_markdown_mentions_downloads(tmp_path: Path) -> None:

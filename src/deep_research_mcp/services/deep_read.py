@@ -9,8 +9,8 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - compatibility fallback
     import pymupdf as fitz
 
-from zotero_researcher_mcp.config import Settings
-from zotero_researcher_mcp.models import DeepReadArtifact, DownloadedDocument, PaperRecord, TextChunk, slugify
+from deep_research_mcp.config import Settings
+from deep_research_mcp.models import DeepReadArtifact, DownloadedDocument, PaperRecord, TextChunk, slugify
 
 _STOPWORDS = {
     "a",

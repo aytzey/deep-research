@@ -15,8 +15,8 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - compatibility fallback
     import pymupdf as fitz
 
-from zotero_researcher_mcp.config import Settings
-from zotero_researcher_mcp.models import DownloadedDocument, PaperRecord, slugify, utc_timestamp
+from deep_research_mcp.config import Settings
+from deep_research_mcp.models import DownloadedDocument, PaperRecord, slugify, utc_timestamp
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 

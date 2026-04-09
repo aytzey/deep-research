@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This file is the shared entry point for any coding or research agent working with `zotero-researcher-mcp`.
+This file is the shared entry point for any coding or research agent working with `deep-research-mcp`.
 
 ## What This Repository Does
 
@@ -18,8 +18,8 @@ If you need context fast, read files in this order:
 
 1. [README.md](README.md)
 2. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-3. [src/zotero_researcher_mcp/server.py](src/zotero_researcher_mcp/server.py)
-4. [src/zotero_researcher_mcp/services/zotero.py](src/zotero_researcher_mcp/services/zotero.py)
+3. [src/deep_research_mcp/server.py](src/deep_research_mcp/server.py)
+4. [src/deep_research_mcp/services/zotero.py](src/deep_research_mcp/services/zotero.py)
 5. [CLAUDE.md](CLAUDE.md) or [CODEX.md](CODEX.md), depending on the client
 
 ## Recommended Tool Order
@@ -83,7 +83,7 @@ The implementation is organized around service modules:
 - `services/zotero.py`: local and web Zotero integration
 - `services/reporting.py`: report generation
 
-Tool entry points are defined in [src/zotero_researcher_mcp/server.py](src/zotero_researcher_mcp/server.py).
+Tool entry points are defined in [src/deep_research_mcp/server.py](src/deep_research_mcp/server.py).
 
 ## Good Default Prompt Shapes
 

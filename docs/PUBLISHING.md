@@ -13,15 +13,15 @@ uv build
 
 Artifacts are written to `dist/`:
 
-- `zotero_researcher_mcp-<version>.tar.gz`
-- `zotero_researcher_mcp-<version>-py3-none-any.whl`
+- `deep_research_mcp-<version>.tar.gz`
+- `deep_research_mcp-<version>-py3-none-any.whl`
 
 ## GitHub Release Flow
 
 Push a version tag:
 
 ```bash
-git tag -a v0.1.2 -m "v0.1.2"
+git tag -a v0.2.0 -m "v0.2.0"
 git push origin main --tags
 ```
 
@@ -37,7 +37,7 @@ The repository includes a manual `publish-pypi.yml` workflow designed for PyPI T
 
 Recommended setup:
 
-1. Create the `zotero-researcher-mcp` project on PyPI
+1. Create the `deep-research-mcp` project on PyPI
 2. In PyPI, add a Trusted Publisher for this GitHub repository and workflow
 3. Run the `Publish to PyPI` workflow from GitHub Actions
 

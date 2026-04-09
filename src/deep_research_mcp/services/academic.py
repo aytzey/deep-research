@@ -14,8 +14,8 @@ from urllib.parse import quote
 
 import httpx
 
-from zotero_researcher_mcp.config import Settings
-from zotero_researcher_mcp.models import PaperRecord, combine_papers, normalize_doi
+from deep_research_mcp.config import Settings
+from deep_research_mcp.models import PaperRecord, combine_papers, normalize_doi
 
 SEMANTIC_SCHOLAR_FIELDS = ",".join(
     [
@@ -68,8 +68,8 @@ class AcademicSearchService:
 
     def _user_agent(self) -> str:
         if self.settings.openalex_email:
-            return f"zotero-researcher-mcp/0.1 ({self.settings.openalex_email})"
-        return "zotero-researcher-mcp/0.1"
+            return f"deep-research-mcp/0.2 ({self.settings.openalex_email})"
+        return "deep-research-mcp/0.2"
 
     async def search_literature(
         self,

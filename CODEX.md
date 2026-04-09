@@ -1,6 +1,6 @@
 # CODEX.md
 
-This file is the Codex-specific operating guide for `zotero-researcher-mcp`.
+This file is the Codex-specific operating guide for `deep-research-mcp`.
 
 ## Best Fit
 
@@ -17,11 +17,11 @@ Add an MCP server block to `~/.codex/config.toml`. A ready-made snippet lives in
 Minimal config:
 
 ```toml
-[mcp_servers.zotero_researcher]
+[mcp_servers.deep_research]
 command = "uv"
-args = ["--directory", "/absolute/path/to/Zotero_Researcher", "run", "zotero-researcher-mcp"]
+args = ["--directory", "/absolute/path/to/deep-research", "run", "deep-research-mcp"]
 
-[mcp_servers.zotero_researcher.env]
+[mcp_servers.deep_research.env]
 OPENALEX_EMAIL = "you@example.com"
 UNPAYWALL_EMAIL = "you@example.com"
 ZOTERO_LOCAL = "true"

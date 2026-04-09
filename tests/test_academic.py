@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from zotero_researcher_mcp.config import Settings
-from zotero_researcher_mcp.services.academic import AcademicSearchService
+from deep_research_mcp.config import Settings
+from deep_research_mcp.services.academic import AcademicSearchService
 
 
 def _settings(tmp_path: Path) -> Settings:

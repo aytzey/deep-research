@@ -5,23 +5,23 @@ from functools import lru_cache
 
 from mcp.server.fastmcp import FastMCP
 
-from zotero_researcher_mcp.config import Settings, load_settings
-from zotero_researcher_mcp.models import PaperRecord
-from zotero_researcher_mcp.services.academic import AcademicSearchService
-from zotero_researcher_mcp.services.deep_read import DeepReadingService
-from zotero_researcher_mcp.services.libgen import LibgenService
-from zotero_researcher_mcp.services.open_access import OpenAccessService
-from zotero_researcher_mcp.services.reporting import ReportService
-from zotero_researcher_mcp.services.zotero import ZoteroService
+from deep_research_mcp.config import Settings, load_settings
+from deep_research_mcp.models import PaperRecord
+from deep_research_mcp.services.academic import AcademicSearchService
+from deep_research_mcp.services.deep_read import DeepReadingService
+from deep_research_mcp.services.libgen import LibgenService
+from deep_research_mcp.services.open_access import OpenAccessService
+from deep_research_mcp.services.reporting import ReportService
+from deep_research_mcp.services.zotero import ZoteroService
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 mcp = FastMCP(
-    "Zotero Researcher",
+    "Deep Research",
     instructions=(
-        "Academic research assistant for topic discovery, similar-paper expansion, "
-        "open-access PDF inspection, optional LibGen shadow-library lookups, and Zotero syncing. "
+        "Open-source Deep Research agent. Searches academic databases, downloads open-access PDFs, "
+        "extracts full text with evidence chunking, renders figures, and syncs everything to Zotero. "
         "When using shadow-library sources, surface provenance and keep them supplemental."
     ),
 )

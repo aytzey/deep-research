@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "zotero-researcher-mcp"
-version = "0.1.2"
-description = "MCP server for academic discovery, PDF inspection, deep reading, and Zotero syncing."
+name = "deep-research-mcp"
+version = "0.2.0"
+description = "Open-source Deep Research. Search papers, read PDFs, extract evidence, render figures, sync to Zotero. MCP server for Claude, Codex, and any AI agent."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
@@ -14,12 +14,17 @@ authors = [
 ]
 keywords = [
   "mcp",
-  "zotero",
-  "research",
+  "deep-research",
+  "research-agent",
   "academic-search",
   "open-access",
   "pdf",
   "llm-tools",
+  "zotero",
+  "semantic-scholar",
+  "openalex",
+  "arxiv",
+  "literature-review",
 ]
 classifiers = [
   "License :: OSI Approved :: MIT License",
@@ -42,11 +47,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/aytzey/Zotero-Researcher"
-Repository = "https://github.com/aytzey/Zotero-Researcher"
-Issues = "https://github.com/aytzey/Zotero-Researcher/issues"
-Documentation = "https://github.com/aytzey/Zotero-Researcher#readme"
-Changelog = "https://github.com/aytzey/Zotero-Researcher/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/aytzey/deep-research"
+Repository = "https://github.com/aytzey/deep-research"
+Issues = "https://github.com/aytzey/deep-research/issues"
+Documentation = "https://github.com/aytzey/deep-research#readme"
+Changelog = "https://github.com/aytzey/deep-research/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [
@@ -54,7 +59,7 @@ dev = [
 ]
 
 [project.scripts]
-zotero-researcher-mcp = "zotero_researcher_mcp.cli:main"
+deep-research-mcp = "deep_research_mcp.cli:main"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
@@ -62,4 +67,4 @@ testpaths = ["tests"]
 addopts = "-q"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/zotero_researcher_mcp"]
+packages = ["src/deep_research_mcp"]

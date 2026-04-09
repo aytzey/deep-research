@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file is the Claude-specific operating guide for `zotero-researcher-mcp`.
+This file is the Claude-specific operating guide for `deep-research-mcp`.
 
 ## Best Fit
 
@@ -17,13 +17,13 @@ Use the config in [examples/claude-desktop.mcp.json](examples/claude-desktop.mcp
 ```json
 {
   "mcpServers": {
-    "zotero-researcher": {
+    "deep-research": {
       "command": "uv",
       "args": [
         "--directory",
-        "/absolute/path/to/Zotero_Researcher",
+        "/absolute/path/to/deep-research",
         "run",
-        "zotero-researcher-mcp"
+        "deep-research-mcp"
       ],
       "env": {
         "OPENALEX_EMAIL": "you@example.com",
