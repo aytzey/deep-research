@@ -12,7 +12,8 @@ def normalize_doi(value: str | None) -> str | None:
     if not value:
         return None
     cleaned = value.strip().lower()
-    cleaned = re.sub(r"^https?://(dx\.)?doi\.org/", "", cleaned)
+    cleaned = re.sub(r"^doi:\s*", "", cleaned)
+    cleaned = re.sub(r"^(?:https?://)?(dx\.)?doi\.org/", "", cleaned)
     return cleaned or None
 
 

@@ -49,6 +49,19 @@ RECOMMENDATION_FIELDS = ",".join(
     ]
 )
 
+SUBRESOURCE_DOI_SUFFIX_RE = re.compile(
+    r"/(?:fig(?:ure)?|table|tbl|supp(?:lementary)?(?:-material)?|appendix|appx|video|media|dataset|data|code|eq|equation|chart|graph|image|scheme|box|plate)-[a-z0-9._-]+$",
+    re.IGNORECASE,
+)
+FALLBACK_HTTP_ERRORS = (
+    httpx.ConnectError,
+    httpx.ConnectTimeout,
+    httpx.ReadError,
+    httpx.ReadTimeout,
+    httpx.RemoteProtocolError,
+    httpx.PoolTimeout,
+)
+
 
 @dataclass(slots=True)
 class SearchBundle:
@@ -470,7 +483,7 @@ class AcademicSearchService:
             return records, []
 
         candidate_dois = [
-            normalize_doi(record.doi)
+            self._doi_for_oa_lookup(record.doi)
             for record in records
             if record.doi and (not record.pdf_url or not record.is_open_access)
         ]
@@ -478,49 +491,126 @@ class AcademicSearchService:
         if not unique_dois:
             return records, []
 
+        selected_dois = unique_dois[:20]
+        lookup_semaphore = asyncio.Semaphore(4)
         results = await asyncio.gather(
-            *(self._lookup_unpaywall(client, doi) for doi in unique_dois[:20]),
+            *(self._lookup_oa_metadata(client, doi, lookup_semaphore) for doi in selected_dois),
             return_exceptions=True,
         )
-        by_doi: dict[str, dict[str, Any]] = {}
+        by_doi: dict[str, tuple[str, dict[str, Any]]] = {}
         warnings: list[str] = []
-        for doi, result in zip(unique_dois[:20], results, strict=True):
+        for doi, result in zip(selected_dois, results, strict=True):
             if isinstance(result, Exception):
-                if isinstance(result, httpx.HTTPStatusError) and result.response.status_code == 422:
-                    continue
-                warnings.append(
-                    f"Unpaywall DOI zenginleştirmesi başarısız oldu ({doi}): {self._format_exception(result)}"
-                )
+                warnings.append(f"DOI OA zenginleştirmesi başarısız oldu ({doi}): {self._format_exception(result)}")
                 continue
             by_doi[doi] = result
 
         for record in records:
-            doi = normalize_doi(record.doi)
+            doi = self._doi_for_oa_lookup(record.doi)
             if not doi:
                 continue
-            payload = by_doi.get(doi)
-            if not payload:
+            enrichment = by_doi.get(doi)
+            if not enrichment:
                 continue
-            best = payload.get("best_oa_location") or {}
-            record.pdf_url = record.pdf_url or best.get("url_for_pdf") or best.get("url")
-            record.url = record.url or best.get("url_for_landing_page") or payload.get("doi_url")
-            record.is_open_access = record.is_open_access or bool(payload.get("is_oa") or record.pdf_url)
+            source, payload = enrichment
+            if source == "unpaywall":
+                best = payload.get("best_oa_location") or {}
+                record.pdf_url = record.pdf_url or best.get("url_for_pdf") or best.get("url")
+                record.url = record.url or best.get("url_for_landing_page") or payload.get("doi_url")
+                record.is_open_access = record.is_open_access or bool(payload.get("is_oa") or record.pdf_url)
+                record.raw = {
+                    **record.raw,
+                    "unpaywall": {
+                        "oa_status": payload.get("oa_status"),
+                        "host_type": best.get("host_type"),
+                        "license": best.get("license"),
+                    },
+                }
+                continue
+
+            openalex_record = self._paper_from_openalex(payload)
+            record.title = record.title or openalex_record.title
+            record.authors = record.authors or openalex_record.authors
+            record.abstract = record.abstract or openalex_record.abstract
+            record.year = record.year or openalex_record.year
+            record.venue = record.venue or openalex_record.venue
+            record.url = record.url or openalex_record.url
+            record.pdf_url = record.pdf_url or openalex_record.pdf_url
+            record.citation_count = max(record.citation_count or 0, openalex_record.citation_count or 0) or None
+            record.is_open_access = record.is_open_access or openalex_record.is_open_access or bool(record.pdf_url)
+            record.keywords = sorted(set(record.keywords + openalex_record.keywords))
             record.raw = {
                 **record.raw,
-                "unpaywall": {
-                    "oa_status": payload.get("oa_status"),
-                    "host_type": best.get("host_type"),
-                    "license": best.get("license"),
+                "openalex_doi_lookup": {
+                    "id": payload.get("id"),
+                    "oa_status": ((payload.get("open_access") or {}).get("oa_status")),
                 },
             }
         return records, warnings
 
+    def _doi_for_oa_lookup(self, value: str | None) -> str | None:
+        doi = normalize_doi(value)
+        if not doi:
+            return None
+        return SUBRESOURCE_DOI_SUFFIX_RE.sub("", doi)
+
+    async def _lookup_oa_metadata(
+        self,
+        client: httpx.AsyncClient,
+        doi: str,
+        semaphore: asyncio.Semaphore,
+    ) -> tuple[str, dict[str, Any]]:
+        async with semaphore:
+            unpaywall_error: Exception | None = None
+            try:
+                return "unpaywall", await self._lookup_unpaywall(client, doi)
+            except Exception as exc:
+                unpaywall_error = exc
+
+            try:
+                return "openalex", await self._lookup_openalex_by_doi(client, doi)
+            except Exception as fallback_exc:
+                raise RuntimeError(
+                    "unpaywall="
+                    f"{self._format_exception(unpaywall_error)}; "
+                    "openalex="
+                    f"{self._format_exception(fallback_exc)}"
+                ) from fallback_exc
+
     async def _lookup_unpaywall(self, client: httpx.AsyncClient, doi: str) -> dict[str, Any]:
+        try:
+            return await self._get_json(
+                client,
+                f"https://api.unpaywall.org/v2/{quote(doi, safe='')}",
+                {"email": self.settings.unpaywall_email},
+                "unpaywall_lookup",
+                timeout=httpx.Timeout(10.0, connect=3.0),
+            )
+        except FALLBACK_HTTP_ERRORS:
+            raise
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code not in {408, 409, 425, 429, 500, 502, 503, 504}:
+                raise
+
+        await asyncio.sleep(0.5)
         return await self._get_json(
             client,
             f"https://api.unpaywall.org/v2/{quote(doi, safe='')}",
             {"email": self.settings.unpaywall_email},
             "unpaywall_lookup",
+            timeout=httpx.Timeout(10.0, connect=3.0),
+        )
+
+    async def _lookup_openalex_by_doi(self, client: httpx.AsyncClient, doi: str) -> dict[str, Any]:
+        params: dict[str, Any] = {}
+        if self.settings.openalex_email:
+            params["mailto"] = self.settings.openalex_email
+        return await self._get_json(
+            client,
+            f"https://api.openalex.org/works/{quote(f'https://doi.org/{doi}', safe=':/')}",
+            params,
+            "openalex_doi_lookup",
+            timeout=httpx.Timeout(20.0, connect=5.0),
         )
 
     @staticmethod
@@ -536,13 +626,14 @@ class AcademicSearchService:
         url: str,
         params: dict[str, Any],
         namespace: str,
+        timeout: httpx.Timeout | float | None = None,
     ) -> dict[str, Any]:
         cache_file = self._cache_file(namespace, url, params, "json")
         cached = self._read_cache(cache_file)
         if cached and cached["expires_at"] > time.time():
             return cached["payload"]
         try:
-            response = await client.get(url, params=params)
+            response = await client.get(url, params=params, timeout=timeout)
             response.raise_for_status()
             payload = response.json()
             self._write_cache(cache_file, payload)
