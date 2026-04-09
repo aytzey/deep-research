@@ -8,10 +8,10 @@ Everyone's selling "Deep Research" behind paywalls. They scrape some web results
 
 This does what they don't. It downloads the actual PDFs, reads them cover to cover, pulls out evidence with citations, renders the figures so your AI can see them, and saves everything to your Zotero library. It works with Claude, Codex, and any MCP client.
 
-[![CI](https://github.com/aytzey/deep-research/actions/workflows/ci.yml/badge.svg)](https://github.com/aytzey/deep-research/actions/workflows/ci.yml)
+[![CI](https://github.com/aytzey/academic-research-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/aytzey/academic-research-mcp/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](pyproject.toml)
-[![GitHub stars](https://img.shields.io/github/stars/aytzey/deep-research?style=social)](https://github.com/aytzey/deep-research/stargazers)
+[![GitHub stars](https://img.shields.io/github/stars/aytzey/academic-research-mcp?style=social)](https://github.com/aytzey/academic-research-mcp/stargazers)
 
 ---
 
@@ -53,7 +53,7 @@ One prompt. Six academic databases. Real PDFs. Real citations.
 ## Get started
 
 ```bash
-git clone https://github.com/aytzey/deep-research.git
+git clone https://github.com/aytzey/academic-research-mcp.git
 cd deep-research
 uv venv && source .venv/bin/activate
 uv sync
@@ -280,4 +280,4 @@ Please use this tool responsibly and respect intellectual property rights.
 
 MIT. Do whatever you want with it.
 
-If this helps your research, [star the repo](https://github.com/aytzey/deep-research) and tell a colleague about it.
+If this helps your research, [star the repo](https://github.com/aytzey/academic-research-mcp) and tell a colleague about it.

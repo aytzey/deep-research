@@ -49,11 +49,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/aytzey/deep-research"
-Repository = "https://github.com/aytzey/deep-research"
-Issues = "https://github.com/aytzey/deep-research/issues"
-Documentation = "https://github.com/aytzey/deep-research#readme"
-Changelog = "https://github.com/aytzey/deep-research/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/aytzey/academic-research-mcp"
+Repository = "https://github.com/aytzey/academic-research-mcp"
+Issues = "https://github.com/aytzey/academic-research-mcp/issues"
+Documentation = "https://github.com/aytzey/academic-research-mcp#readme"
+Changelog = "https://github.com/aytzey/academic-research-mcp/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [

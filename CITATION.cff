@@ -1,14 +1,14 @@
 cff-version: 1.2.0
-title: Deep Research MCP
+title: Academic Research MCP
 message: If you use this project in academic work, please cite the repository.
 type: software
 authors:
   - family-names: Sezer
     given-names: Aytug Berk
-repository-code: https://github.com/aytzey/deep-research
-url: https://github.com/aytzey/deep-research
+repository-code: https://github.com/aytzey/academic-research-mcp
+url: https://github.com/aytzey/academic-research-mcp
 license: MIT
-version: 0.2.0
+version: 0.3.0
 date-released: 2026-04-09
 abstract: >
   Open-source Deep Research MCP server. Searches academic databases, downloads
