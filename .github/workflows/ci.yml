@@ -28,3 +28,9 @@ jobs:
 
       - name: Run tests
         run: uv run pytest
+
+      - name: Build package
+        run: uv build
+
+      - name: Check distributions
+        run: uvx twine check dist/*

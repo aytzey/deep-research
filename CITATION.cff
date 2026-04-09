@@ -8,7 +8,7 @@ authors:
 repository-code: https://github.com/aytzey/Zotero-Researcher
 url: https://github.com/aytzey/Zotero-Researcher
 license: MIT
-version: 0.1.1
+version: 0.1.2
 date-released: 2026-04-09
 abstract: >
   MCP server for academic discovery, open-access PDF inspection, deep reading,

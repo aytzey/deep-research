@@ -5,6 +5,7 @@
 [![CI](https://github.com/aytzey/Zotero-Researcher/actions/workflows/ci.yml/badge.svg)](https://github.com/aytzey/Zotero-Researcher/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/aytzey/Zotero-Researcher/blob/main/LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://github.com/aytzey/Zotero-Researcher/blob/main/pyproject.toml)
+[![Release](https://img.shields.io/github/v/release/aytzey/Zotero-Researcher)](https://github.com/aytzey/Zotero-Researcher/releases)
 [![GitHub stars](https://img.shields.io/github/stars/aytzey/Zotero-Researcher?style=social)](https://github.com/aytzey/Zotero-Researcher/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/aytzey/Zotero-Researcher?style=social)](https://github.com/aytzey/Zotero-Researcher/network/members)
 
@@ -18,6 +19,10 @@ An MCP server that turns an LLM into a practical research workflow:
 - write results back into local Zotero or the Zotero Web API
 
 This project is designed for Codex, Claude, and other MCP clients that need a single tool surface for literature discovery, document inspection, and reference management.
+
+## Demo
+
+![Demo](docs/demo.gif)
 
 ## At a Glance
 
@@ -169,6 +174,8 @@ Streamable HTTP mode:
 uv run zotero-researcher-mcp --transport streamable-http --host 127.0.0.1 --port 8000 --path /mcp
 ```
 
+Release artifacts are also attached to GitHub Releases.
+
 ## Configuration
 
 Example environment file:
@@ -256,6 +263,16 @@ Run the test suite:
 ```bash
 uv run pytest
 ```
+
+Build distributables:
+
+```bash
+uv build
+```
+
+Publishing guidance and workflow setup:
+
+- [docs/PUBLISHING.md](docs/PUBLISHING.md)
 
 ## Community
 

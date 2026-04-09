@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.2 - 2026-04-09
+
+- added demo GIF and publishing guide
+- added GitHub release workflow with built artifacts
+- added manual PyPI publish workflow for trusted publishing
+- extended CI to validate built distributions
+- improved README discoverability with release badge and demo section
+
 ## 0.1.1 - 2026-04-09
 
 - added portfolio-grade README badges and positioning
