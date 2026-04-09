@@ -1,0 +1,484 @@
+from __future__ import annotations
+
+import logging
+from functools import lru_cache
+
+from mcp.server.fastmcp import FastMCP
+
+from zotero_researcher_mcp.config import Settings, load_settings
+from zotero_researcher_mcp.models import PaperRecord
+from zotero_researcher_mcp.services.academic import AcademicSearchService
+from zotero_researcher_mcp.services.deep_read import DeepReadingService
+from zotero_researcher_mcp.services.libgen import LibgenService
+from zotero_researcher_mcp.services.open_access import OpenAccessService
+from zotero_researcher_mcp.services.reporting import ReportService
+from zotero_researcher_mcp.services.zotero import ZoteroService
+
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+
+mcp = FastMCP(
+    "Zotero Researcher",
+    instructions=(
+        "Academic research assistant for topic discovery, similar-paper expansion, "
+        "open-access PDF inspection, optional LibGen shadow-library lookups, and Zotero syncing. "
+        "When using shadow-library sources, surface provenance and keep them supplemental."
+    ),
+)
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    return load_settings()
+
+
+def get_academic_service() -> AcademicSearchService:
+    return AcademicSearchService(get_settings())
+
+
+def get_open_access_service() -> OpenAccessService:
+    return OpenAccessService(get_settings())
+
+
+def get_libgen_service() -> LibgenService:
+    return LibgenService(get_settings())
+
+
+def get_report_service() -> ReportService:
+    return ReportService(get_settings())
+
+
+def get_deep_read_service() -> DeepReadingService:
+    return DeepReadingService(get_settings())
+
+
+def get_zotero_service() -> ZoteroService:
+    return ZoteroService(get_settings())
+
+
+async def _run_research_pipeline(
+    topic: str,
+    limit_per_source: int,
+    related_limit: int,
+    download_top_n: int,
+    include_libgen: bool,
+    libgen_limit: int,
+    libgen_download_top_n: int,
+    from_year: int | None,
+    to_year: int | None,
+    open_access_only: bool,
+) -> dict:
+    academic = get_academic_service()
+    oa_service = get_open_access_service()
+    libgen_service = get_libgen_service()
+
+    search_bundle = await academic.search_literature(
+        topic=topic,
+        limit_per_source=limit_per_source,
+        from_year=from_year,
+        to_year=to_year,
+        open_access_only=open_access_only,
+    )
+    top_papers = search_bundle.results[: max(limit_per_source * 3, 1)]
+
+    related_bundle = (
+        await academic.recommend_similar(
+            seed_title=top_papers[0].title,
+            seed_doi=top_papers[0].doi,
+            limit=related_limit,
+            open_access_only=open_access_only,
+        )
+        if top_papers
+        else None
+    )
+    related_papers = related_bundle.results[:related_limit] if related_bundle else []
+    related_warnings = related_bundle.warnings if related_bundle else []
+
+    downloads, download_warnings = await oa_service.download_best_papers(
+        topic=topic,
+        papers=top_papers,
+        max_papers=download_top_n,
+    )
+
+    libgen_results: list[PaperRecord] = []
+    libgen_downloads = []
+    libgen_warnings: list[str] = []
+    if include_libgen:
+        libgen_bundle = await libgen_service.search(
+            query=topic,
+            search_type="title",
+            limit=libgen_limit,
+            allowed_extensions=("pdf", "epub"),
+        )
+        libgen_results = libgen_bundle.results
+        libgen_warnings = libgen_bundle.warnings
+        for paper in libgen_results[:libgen_download_top_n]:
+            try:
+                libgen_downloads.append(await libgen_service.download_preview(paper.raw, topic_hint=topic))
+            except Exception as exc:
+                libgen_warnings.append(f"LibGen preview alınamadı ({paper.title}): {exc}")
+
+    all_warnings = search_bundle.warnings + related_warnings + download_warnings + libgen_warnings
+    return {
+        "top_papers": top_papers,
+        "related_papers": related_papers,
+        "downloads": downloads,
+        "libgen_results": libgen_results,
+        "libgen_downloads": libgen_downloads,
+        "warnings": all_warnings,
+    }
+
+
+@mcp.tool()
+def healthcheck() -> dict:
+    """Return current configuration summary and enabled integrations."""
+    settings = get_settings()
+    return {
+        "status": "ok",
+        "data_dir": str(settings.data_dir),
+        "cache_dir": str(settings.cache_dir),
+        "deep_reads_dir": str(settings.deep_reads_dir),
+        "render_dir": str(settings.render_dir),
+        "openalex_email_configured": bool(settings.openalex_email),
+        "unpaywall_email_configured": bool(settings.unpaywall_email),
+        "semantic_scholar_api_key_configured": bool(settings.semantic_scholar_api_key),
+        "zotero": get_zotero_service().status(),
+        "proxy_configured": settings.proxy_configured,
+        "ssl_cert_file_configured": bool(settings.ssl_cert_file),
+        "libgen_mirrors": list(settings.libgen_mirrors),
+        "note": (
+            "Legal OA sources honor trust_env proxies and optional SSL_CERT_FILE; "
+            "LibGen remains best-effort only. Local Zotero mode uses localhost:23119 "
+            "and optionally a zoty-bridge compatible /execute plugin for full writes."
+        ),
+    }
+
+
+@mcp.tool()
+async def search_literature(
+    topic: str,
+    limit_per_source: int = 5,
+    from_year: int | None = None,
+    to_year: int | None = None,
+    open_access_only: bool = True,
+) -> dict:
+    """Search Semantic Scholar, OpenAlex, Europe PMC, arXiv, and Crossref for a topic."""
+    bundle = await get_academic_service().search_literature(
+        topic=topic,
+        limit_per_source=limit_per_source,
+        from_year=from_year,
+        to_year=to_year,
+        open_access_only=open_access_only,
+    )
+    return {
+        "topic": topic,
+        "warnings": bundle.warnings,
+        "results": [paper.to_dict() for paper in bundle.results],
+    }
+
+
+@mcp.tool()
+async def find_similar_papers(
+    seed_title: str,
+    seed_doi: str | None = None,
+    limit: int = 8,
+    open_access_only: bool = True,
+) -> dict:
+    """Find similar papers starting from a seed paper title or DOI."""
+    bundle = await get_academic_service().recommend_similar(
+        seed_title=seed_title,
+        seed_doi=seed_doi,
+        limit=limit,
+        open_access_only=open_access_only,
+    )
+    return {
+        "seed_title": seed_title,
+        "warnings": bundle.warnings,
+        "results": [paper.to_dict() for paper in bundle.results[:limit]],
+    }
+
+
+@mcp.tool()
+async def inspect_open_access_pdf(pdf_url: str, filename_hint: str = "paper") -> dict:
+    """Download an open-access PDF and return a local preview."""
+    document = await get_open_access_service().inspect_remote_pdf(pdf_url, filename_hint)
+    return document.to_dict()
+
+
+@mcp.tool()
+def extract_local_pdf_text(
+    pdf_path: str,
+    title_hint: str | None = None,
+    research_question: str | None = None,
+    chunk_size_chars: int = 5000,
+    chunk_overlap_chars: int = 600,
+    top_chunks: int = 5,
+) -> dict:
+    """Extract full text from a local PDF, save a text sidecar, and return top matching chunks."""
+    artifact = get_deep_read_service().extract_local_pdf(
+        pdf_path=pdf_path,
+        title_hint=title_hint,
+        research_question=research_question,
+        chunk_size_chars=chunk_size_chars,
+        chunk_overlap_chars=chunk_overlap_chars,
+    )
+    return artifact.to_dict(top_chunks=top_chunks)
+
+
+@mcp.tool()
+def render_pdf_pages(
+    pdf_path: str,
+    page_numbers: list[int],
+    scale: float = 2.0,
+) -> dict:
+    """Render selected PDF pages to PNG so the agent can inspect figures, tables, and layout."""
+    image_paths = get_deep_read_service().render_pages(pdf_path=pdf_path, page_numbers=page_numbers, scale=scale)
+    return {
+        "pdf_path": str(pdf_path),
+        "images": [str(path) for path in image_paths],
+    }
+
+
+@mcp.tool()
+async def search_libgen(
+    query: str,
+    search_type: str = "title",
+    limit: int = 10,
+    allowed_extensions: list[str] | None = None,
+) -> dict:
+    """Search LibGen mirrors for supplemental research material."""
+    bundle = await get_libgen_service().search(
+        query=query,
+        search_type=search_type,
+        limit=limit,
+        allowed_extensions=tuple(allowed_extensions or ("pdf", "epub")),
+    )
+    return {
+        "query": query,
+        "warnings": bundle.warnings,
+        "results": [paper.to_dict() for paper in bundle.results],
+    }
+
+
+@mcp.tool()
+async def inspect_libgen_item(
+    mirror_1: str,
+    title: str,
+    author: str = "",
+    year: int | None = None,
+    extension: str = "pdf",
+    publisher: str | None = None,
+    size: str | None = None,
+) -> dict:
+    """Resolve LibGen mirror links, download a PDF when possible, and return a preview."""
+    item = {
+        "Mirror_1": mirror_1,
+        "Title": title,
+        "Author": author,
+        "Year": str(year) if year else "",
+        "Extension": extension,
+        "Publisher": publisher or "",
+        "Size": size or "",
+    }
+    document = await get_libgen_service().download_preview(item, topic_hint=title)
+    return document.to_dict()
+
+
+@mcp.tool()
+async def list_zotero_collections(query: str | None = None) -> dict:
+    """List Zotero collections visible to the configured web or local Zotero integration."""
+    collections = await get_zotero_service().list_collections(query=query)
+    return {"collections": collections}
+
+
+@mcp.tool()
+async def research_topic(
+    topic: str,
+    limit_per_source: int = 4,
+    related_limit: int = 6,
+    download_top_n: int = 3,
+    include_libgen: bool = False,
+    libgen_limit: int = 5,
+    libgen_download_top_n: int = 1,
+    from_year: int | None = None,
+    to_year: int | None = None,
+    open_access_only: bool = True,
+    write_to_zotero: bool = False,
+    existing_collection_key: str | None = None,
+    existing_collection_name: str | None = None,
+    create_collection_name: str | None = None,
+    attach_pdfs: bool = True,
+) -> dict:
+    """Run the end-to-end research workflow and optionally sync the result into Zotero."""
+    report_service = get_report_service()
+    pipeline = await _run_research_pipeline(
+        topic=topic,
+        limit_per_source=limit_per_source,
+        related_limit=related_limit,
+        download_top_n=download_top_n,
+        include_libgen=include_libgen,
+        libgen_limit=libgen_limit,
+        libgen_download_top_n=libgen_download_top_n,
+        from_year=from_year,
+        to_year=to_year,
+        open_access_only=open_access_only,
+    )
+    top_papers = pipeline["top_papers"]
+    related_papers = pipeline["related_papers"]
+    downloads = pipeline["downloads"]
+    libgen_results = pipeline["libgen_results"]
+    libgen_downloads = pipeline["libgen_downloads"]
+    all_warnings = pipeline["warnings"]
+
+    zotero_collection_key = None
+    zotero_sync = None
+    if write_to_zotero:
+        target_name = create_collection_name or existing_collection_name or f"Research - {topic}"
+        collection = await get_zotero_service().resolve_collection(
+            existing_collection_key=existing_collection_key,
+            existing_collection_name=existing_collection_name,
+            create_collection_name=target_name,
+        )
+        zotero_collection_key = collection["key"]
+
+    markdown = report_service.render_markdown(
+        topic=topic,
+        papers=top_papers,
+        related=related_papers,
+        downloads=downloads,
+        warnings=all_warnings,
+        supplemental_records=libgen_results,
+        supplemental_downloads=libgen_downloads,
+        zotero_collection_key=zotero_collection_key,
+    )
+    report_path = report_service.write_report(topic, markdown)
+
+    if write_to_zotero and zotero_collection_key:
+        papers_for_zotero: list[PaperRecord] = top_papers + [paper for paper in related_papers if paper.dedupe_key() not in {top.dedupe_key() for top in top_papers}]
+        zotero_sync = await get_zotero_service().sync_topic(
+            collection_key=zotero_collection_key,
+            papers=papers_for_zotero,
+            downloads=downloads,
+            report_markdown=markdown,
+            topic=topic,
+            attach_pdfs=attach_pdfs,
+        )
+
+    return {
+        "topic": topic,
+        "report_path": str(report_path),
+        "warnings": all_warnings,
+        "top_papers": [paper.to_dict() for paper in top_papers],
+        "related_papers": [paper.to_dict() for paper in related_papers],
+        "downloads": [document.to_dict() for document in downloads],
+        "libgen_results": [paper.to_dict() for paper in libgen_results],
+        "libgen_downloads": [document.to_dict() for document in libgen_downloads],
+        "zotero": zotero_sync,
+        "report_markdown": markdown,
+    }
+
+
+@mcp.tool()
+async def deep_read_topic(
+    topic: str,
+    research_question: str | None = None,
+    limit_per_source: int = 4,
+    related_limit: int = 6,
+    download_top_n: int = 4,
+    top_chunks_per_paper: int = 5,
+    chunk_size_chars: int = 5000,
+    chunk_overlap_chars: int = 600,
+    from_year: int | None = None,
+    to_year: int | None = None,
+    open_access_only: bool = True,
+    write_to_zotero: bool = False,
+    existing_collection_key: str | None = None,
+    existing_collection_name: str | None = None,
+    create_collection_name: str | None = None,
+    attach_pdfs: bool = True,
+) -> dict:
+    """Search, download, extract full text, and return evidence chunks plus local PDF paths for direct inspection."""
+    question = research_question or topic
+    pipeline = await _run_research_pipeline(
+        topic=topic,
+        limit_per_source=limit_per_source,
+        related_limit=related_limit,
+        download_top_n=download_top_n,
+        include_libgen=False,
+        libgen_limit=0,
+        libgen_download_top_n=0,
+        from_year=from_year,
+        to_year=to_year,
+        open_access_only=open_access_only,
+    )
+    top_papers = pipeline["top_papers"]
+    related_papers = pipeline["related_papers"]
+    downloads = pipeline["downloads"]
+    all_warnings = pipeline["warnings"]
+    if not downloads:
+        all_warnings = all_warnings + [
+            "Deep read icin indirilebilir PDF bulunamadi; bu durumda sadece bibliyografik arastirma sonucu doner.",
+        ]
+
+    deep_read_service = get_deep_read_service()
+    artifacts = [
+        deep_read_service.extract_document(
+            document,
+            research_question=question,
+            chunk_size_chars=chunk_size_chars,
+            chunk_overlap_chars=chunk_overlap_chars,
+        )
+        for document in downloads
+    ]
+
+    report_service = get_report_service()
+    zotero_collection_key = None
+    if write_to_zotero:
+        target_name = create_collection_name or existing_collection_name or f"Research - {topic}"
+        collection = await get_zotero_service().resolve_collection(
+            existing_collection_key=existing_collection_key,
+            existing_collection_name=existing_collection_name,
+            create_collection_name=target_name,
+        )
+        zotero_collection_key = collection["key"]
+    markdown = report_service.render_deep_read_markdown(
+        topic=topic,
+        research_question=question,
+        papers=top_papers,
+        deep_reads=artifacts,
+        warnings=all_warnings,
+        related=related_papers,
+        zotero_collection_key=zotero_collection_key,
+    )
+    report_path = report_service.write_report(f"{topic}-deep-read", markdown)
+
+    zotero_sync = None
+    if write_to_zotero and zotero_collection_key:
+        papers_for_zotero: list[PaperRecord] = top_papers + [
+            paper for paper in related_papers if paper.dedupe_key() not in {top.dedupe_key() for top in top_papers}
+        ]
+        zotero_sync = await get_zotero_service().sync_topic(
+            collection_key=zotero_collection_key,
+            papers=papers_for_zotero,
+            downloads=downloads,
+            report_markdown=markdown,
+            topic=topic,
+            attach_pdfs=attach_pdfs,
+        )
+
+    return {
+        "topic": topic,
+        "research_question": question,
+        "report_path": str(report_path),
+        "warnings": all_warnings,
+        "top_papers": [paper.to_dict() for paper in top_papers],
+        "related_papers": [paper.to_dict() for paper in related_papers],
+        "downloads": [document.to_dict() for document in downloads],
+        "deep_reads": [artifact.to_dict(top_chunks=top_chunks_per_paper) for artifact in artifacts],
+        "zotero": zotero_sync,
+        "report_markdown": markdown,
+        "agent_notes": [
+            "Grafikler ve tablolar icin deep_reads[*].pdf_path uzerinden dogrudan PDF'e git.",
+            "Metin tabanli karsilastirma icin deep_reads[*].text_path ve chunk_manifest_path kullan.",
+        ],
+    }

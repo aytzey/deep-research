@@ -1,0 +1,115 @@
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+
+@dataclass(frozen=True, slots=True)
+class Settings:
+    openalex_email: str | None
+    semantic_scholar_api_key: str | None
+    zotero_library_id: str | None
+    zotero_library_type: str
+    zotero_api_key: str | None
+    data_dir: Path
+    libgen_mirrors: tuple[str, ...]
+    libgen_timeout_sec: float
+    unpaywall_email: str | None = None
+    ssl_cert_file: str | None = None
+    http_proxy: str | None = None
+    https_proxy: str | None = None
+    no_proxy: str | None = None
+    cache_ttl_sec: int = 86400
+    zotero_local: bool = False
+    zotero_connector_url: str = "http://127.0.0.1:23119/connector/saveItems"
+    zotero_bridge_url: str | None = "http://127.0.0.1:24119"
+
+    @property
+    def effective_zotero_library_id(self) -> str | None:
+        if self.zotero_library_id:
+            return self.zotero_library_id
+        if self.zotero_local and self.zotero_library_type == "user":
+            return "0"
+        return None
+
+    @property
+    def zotero_mode(self) -> str:
+        if self.zotero_local:
+            return "local"
+        if self.zotero_library_id and self.zotero_api_key:
+            return "web"
+        return "disabled"
+
+    @property
+    def zotero_enabled(self) -> bool:
+        return self.zotero_mode != "disabled"
+
+    @property
+    def zotero_bridge_enabled(self) -> bool:
+        return bool(self.zotero_local and self.zotero_bridge_url)
+
+    @property
+    def unpaywall_enabled(self) -> bool:
+        return bool(self.unpaywall_email)
+
+    @property
+    def proxy_configured(self) -> bool:
+        return bool(self.http_proxy or self.https_proxy)
+
+    @property
+    def ssl_verify(self) -> str | bool:
+        return self.ssl_cert_file or True
+
+    @property
+    def cache_dir(self) -> Path:
+        return self.data_dir / "cache"
+
+    @property
+    def deep_reads_dir(self) -> Path:
+        return self.data_dir / "deep_reads"
+
+    @property
+    def render_dir(self) -> Path:
+        return self.data_dir / "renders"
+
+
+def load_settings() -> Settings:
+    load_dotenv()
+    data_dir = Path(os.getenv("ZOTERO_RESEARCHER_DATA_DIR", "./data")).expanduser().resolve()
+    data_dir.mkdir(parents=True, exist_ok=True)
+    (data_dir / "downloads").mkdir(parents=True, exist_ok=True)
+    (data_dir / "reports").mkdir(parents=True, exist_ok=True)
+    (data_dir / "cache").mkdir(parents=True, exist_ok=True)
+    (data_dir / "deep_reads").mkdir(parents=True, exist_ok=True)
+    (data_dir / "renders").mkdir(parents=True, exist_ok=True)
+    mirrors = tuple(
+        mirror.strip().rstrip("/")
+        for mirror in os.getenv(
+            "LIBGEN_MIRRORS",
+            "https://libgen.is,https://libgen.rs,https://libgen.li",
+        ).split(",")
+        if mirror.strip()
+    )
+    zotero_local = os.getenv("ZOTERO_LOCAL", "").strip().lower() in {"1", "true", "yes", "on"}
+    return Settings(
+        openalex_email=os.getenv("OPENALEX_EMAIL"),
+        semantic_scholar_api_key=os.getenv("SEMANTIC_SCHOLAR_API_KEY"),
+        zotero_library_id=os.getenv("ZOTERO_LIBRARY_ID"),
+        zotero_library_type=os.getenv("ZOTERO_LIBRARY_TYPE", "user"),
+        zotero_api_key=os.getenv("ZOTERO_API_KEY"),
+        data_dir=data_dir,
+        libgen_mirrors=mirrors,
+        libgen_timeout_sec=float(os.getenv("LIBGEN_TIMEOUT_SEC", "20")),
+        unpaywall_email=os.getenv("UNPAYWALL_EMAIL") or os.getenv("OPENALEX_EMAIL"),
+        ssl_cert_file=os.getenv("SSL_CERT_FILE"),
+        http_proxy=os.getenv("HTTP_PROXY") or os.getenv("http_proxy"),
+        https_proxy=os.getenv("HTTPS_PROXY") or os.getenv("https_proxy"),
+        no_proxy=os.getenv("NO_PROXY") or os.getenv("no_proxy"),
+        cache_ttl_sec=int(os.getenv("CACHE_TTL_SEC", "86400")),
+        zotero_local=zotero_local,
+        zotero_connector_url=os.getenv("ZOTERO_CONNECTOR_URL", "http://127.0.0.1:23119/connector/saveItems"),
+        zotero_bridge_url=os.getenv("ZOTERO_BRIDGE_URL", "http://127.0.0.1:24119") or None,
+    )
