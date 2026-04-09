@@ -10,3 +10,13 @@ dist/
 build/
 *.pyc
 data/
+graphify-out/
+.graphify_detect.json
+.graphify_ast.json
+.graphify_cached.json
+.graphify_semantic_new.json
+.graphify_uncached.txt
+.graphify_extract.json
+.graphify_semantic.json
+.graphify_analysis.json
+.graphify_labels.json

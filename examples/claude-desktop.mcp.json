@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "zotero-researcher": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/absolute/path/to/Zotero_Researcher",
+        "run",
+        "zotero-researcher-mcp"
+      ],
+      "env": {
+        "OPENALEX_EMAIL": "you@example.com",
+        "UNPAYWALL_EMAIL": "you@example.com",
+        "ZOTERO_LOCAL": "true",
+        "ZOTERO_LIBRARY_TYPE": "user",
+        "ZOTERO_CONNECTOR_URL": "http://127.0.0.1:23119/connector/saveItems",
+        "ZOTERO_BRIDGE_URL": "http://127.0.0.1:24119"
+      }
+    }
+  }
+}

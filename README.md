@@ -20,6 +20,17 @@ An MCP server that turns an LLM into a practical research workflow:
 
 This project is designed for Codex, Claude, and other MCP clients that need a single tool surface for literature discovery, document inspection, and reference management.
 
+## For AI Agents
+
+If you are opening this repository from an agentic client, start here:
+
+- [AGENTS.md](AGENTS.md): shared operating guide for any agent
+- [CLAUDE.md](CLAUDE.md): Claude Desktop and Claude Code setup and workflow
+- [CODEX.md](CODEX.md): Codex setup and workflow
+- [docs/CLIENTS.md](docs/CLIENTS.md): side-by-side client guide
+- [examples/claude-desktop.mcp.json](examples/claude-desktop.mcp.json): drop-in Claude config
+- [examples/codex.config.toml](examples/codex.config.toml): drop-in Codex config snippet
+
 ## Demo
 
 ![Demo](docs/demo.gif)
@@ -176,6 +187,15 @@ uv run zotero-researcher-mcp --transport streamable-http --host 127.0.0.1 --port
 
 Release artifacts are also attached to GitHub Releases.
 
+## Fastest Path For Claude and Codex
+
+1. Start the server with `uv run zotero-researcher-mcp`
+2. Run `healthcheck`
+3. Use `research_topic` for broad discovery
+4. Use `deep_read_topic` when you need evidence chunks and local PDF paths
+5. Use `render_pdf_pages` when a figure, table, or chart matters
+6. Set `write_to_zotero=true` only after local Zotero passes healthcheck
+
 ## Configuration
 
 Example environment file:
@@ -256,6 +276,8 @@ The implementation follows the same practical pattern used by the local Zotero M
 }
 ```
 
+Ready-made config files live in [examples/](examples/).
+
 ## Development
 
 Run the test suite:
@@ -273,6 +295,7 @@ uv build
 Publishing guidance and workflow setup:
 
 - [docs/PUBLISHING.md](docs/PUBLISHING.md)
+- [docs/CLIENTS.md](docs/CLIENTS.md)
 
 ## Community
 

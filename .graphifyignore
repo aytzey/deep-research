@@ -1,0 +1,8 @@
+.git/
+.venv/
+.pytest_cache/
+__pycache__/
+data/
+dist/
+build/
+graphify-out/
