@@ -8,6 +8,7 @@ This project exposes an MCP server for:
 
 - academic search across multiple sources
 - open-access PDF resolution and inspection
+- Sci-Hub paper resolution and download (opt-in, disabled by default)
 - deep reading with full-text extraction and chunking
 - PDF page rendering for charts, tables, and figures
 - Zotero sync in both local and web modes
@@ -70,6 +71,9 @@ Preferred sources:
 4. Europe PMC
 5. Unpaywall
 6. publisher open links
+7. Sci-Hub (opt-in, disabled by default)
+
+`Sci-Hub` is available as an opt-in fallback when `SCIHUB_ENABLED=true`. If used, its provenance should remain explicit.
 
 `LibGen` exists as a best-effort supplemental layer. If used, its provenance should remain explicit and secondary in summaries.
 
@@ -81,6 +85,7 @@ The implementation is organized around service modules:
 - `services/open_access.py`: OA downloads and PDF previews
 - `services/deep_read.py`: text extraction and page rendering
 - `services/zotero.py`: local and web Zotero integration
+- `services/scihub.py`: Sci-Hub paper resolution and download (opt-in)
 - `services/reporting.py`: report generation
 
 Tool entry points are defined in [src/deep_research_mcp/server.py](src/deep_research_mcp/server.py).

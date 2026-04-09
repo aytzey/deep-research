@@ -14,7 +14,9 @@
         "ZOTERO_LOCAL": "true",
         "ZOTERO_LIBRARY_TYPE": "user",
         "ZOTERO_CONNECTOR_URL": "http://127.0.0.1:23119/connector/saveItems",
-        "ZOTERO_BRIDGE_URL": "http://127.0.0.1:24119"
+        "ZOTERO_BRIDGE_URL": "http://127.0.0.1:24119",
+        "SCIHUB_ENABLED": "false",
+        "SCIHUB_MIRRORS": "https://sci-hub.se,https://sci-hub.st,https://sci-hub.ru"
       }
     }
   }

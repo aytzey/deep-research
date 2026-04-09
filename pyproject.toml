@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "deep-research-mcp"
-version = "0.2.0"
+version = "0.3.0"
 description = "Open-source Deep Research. Search papers, read PDFs, extract evidence, render figures, sync to Zotero. MCP server for Claude, Codex, and any AI agent."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -25,6 +25,8 @@ keywords = [
   "openalex",
   "arxiv",
   "literature-review",
+  "sci-hub",
+  "paper-download",
 ]
 classifiers = [
   "License :: OSI Approved :: MIT License",

@@ -12,6 +12,7 @@ from deep_research_mcp.services.deep_read import DeepReadingService
 from deep_research_mcp.services.libgen import LibgenService
 from deep_research_mcp.services.open_access import OpenAccessService
 from deep_research_mcp.services.reporting import ReportService
+from deep_research_mcp.services.scihub import ScihubService
 from deep_research_mcp.services.zotero import ZoteroService
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -52,6 +53,10 @@ def get_deep_read_service() -> DeepReadingService:
     return DeepReadingService(get_settings())
 
 
+def get_scihub_service() -> ScihubService:
+    return ScihubService(get_settings())
+
+
 def get_zotero_service() -> ZoteroService:
     return ZoteroService(get_settings())
 
@@ -67,6 +72,8 @@ async def _run_research_pipeline(
     from_year: int | None,
     to_year: int | None,
     open_access_only: bool,
+    include_scihub: bool = False,
+    scihub_fallback_limit: int = 2,
 ) -> dict:
     academic = get_academic_service()
     oa_service = get_open_access_service()
@@ -100,6 +107,19 @@ async def _run_research_pipeline(
         max_papers=download_top_n,
     )
 
+    # Sci-Hub fallback for papers without OA PDFs
+    scihub_downloads = []
+    scihub_warnings: list[str] = []
+    if include_scihub and get_settings().scihub_enabled:
+        scihub_service = get_scihub_service()
+        papers_without_pdf = [p for p in top_papers if p.doi and not p.pdf_url]
+        for paper in papers_without_pdf[:scihub_fallback_limit]:
+            try:
+                doc = await scihub_service.download_paper(doi=paper.doi, topic_hint=topic)
+                scihub_downloads.append(doc)
+            except Exception as exc:
+                scihub_warnings.append(f"Sci-Hub fallback basarisiz ({paper.title}): {exc}")
+
     libgen_results: list[PaperRecord] = []
     libgen_downloads = []
     libgen_warnings: list[str] = []
@@ -118,11 +138,12 @@ async def _run_research_pipeline(
             except Exception as exc:
                 libgen_warnings.append(f"LibGen preview alınamadı ({paper.title}): {exc}")
 
-    all_warnings = search_bundle.warnings + related_warnings + download_warnings + libgen_warnings
+    all_warnings = search_bundle.warnings + related_warnings + download_warnings + scihub_warnings + libgen_warnings
     return {
         "top_papers": top_papers,
         "related_papers": related_papers,
         "downloads": downloads,
+        "scihub_downloads": scihub_downloads,
         "libgen_results": libgen_results,
         "libgen_downloads": libgen_downloads,
         "warnings": all_warnings,
@@ -146,9 +167,11 @@ def healthcheck() -> dict:
         "proxy_configured": settings.proxy_configured,
         "ssl_cert_file_configured": bool(settings.ssl_cert_file),
         "libgen_mirrors": list(settings.libgen_mirrors),
+        "scihub_enabled": settings.scihub_enabled,
+        "scihub_mirrors": list(settings.scihub_mirrors),
         "note": (
             "Legal OA sources honor trust_env proxies and optional SSL_CERT_FILE; "
-            "LibGen remains best-effort only. Local Zotero mode uses localhost:23119 "
+            "LibGen and Sci-Hub remain best-effort only. Local Zotero mode uses localhost:23119 "
             "and optionally a zoty-bridge compatible /execute plugin for full writes."
         ),
     }
@@ -285,6 +308,37 @@ async def inspect_libgen_item(
 
 
 @mcp.tool()
+async def search_scihub(
+    query: str,
+    search_type: str = "doi",
+    limit: int = 10,
+    check_availability: bool = False,
+) -> dict:
+    """Search Sci-Hub for papers by DOI, title, or keyword. Use search_type='doi', 'title', or 'keyword'."""
+    service = get_scihub_service()
+    if search_type == "doi":
+        result = await service.fetch_by_doi(query)
+        return {"search_type": "doi", "query": query, "result": result}
+    elif search_type == "title":
+        result = await service.search_by_title(query)
+        return {"search_type": "title", "query": query, "result": result}
+    else:
+        results = await service.search_by_keyword(query, limit=limit, check_scihub=check_availability)
+        return {"search_type": "keyword", "query": query, "results": results}
+
+
+@mcp.tool()
+async def download_scihub_paper(
+    doi: str,
+    topic_hint: str = "scihub",
+) -> dict:
+    """Download a paper PDF via Sci-Hub using its DOI. Returns local path and text preview."""
+    service = get_scihub_service()
+    document = await service.download_paper(doi=doi, topic_hint=topic_hint)
+    return document.to_dict()
+
+
+@mcp.tool()
 async def list_zotero_collections(query: str | None = None) -> dict:
     """List Zotero collections visible to the configured web or local Zotero integration."""
     collections = await get_zotero_service().list_collections(query=query)
@@ -300,6 +354,8 @@ async def research_topic(
     include_libgen: bool = False,
     libgen_limit: int = 5,
     libgen_download_top_n: int = 1,
+    include_scihub: bool = False,
+    scihub_fallback_limit: int = 2,
     from_year: int | None = None,
     to_year: int | None = None,
     open_access_only: bool = True,
@@ -309,7 +365,8 @@ async def research_topic(
     create_collection_name: str | None = None,
     attach_pdfs: bool = True,
 ) -> dict:
-    """Run the end-to-end research workflow and optionally sync the result into Zotero."""
+    """Run the end-to-end research workflow and optionally sync the result into Zotero.
+    Set include_scihub=True to use Sci-Hub as a fallback for papers without open-access PDFs."""
     report_service = get_report_service()
     pipeline = await _run_research_pipeline(
         topic=topic,
@@ -322,10 +379,13 @@ async def research_topic(
         from_year=from_year,
         to_year=to_year,
         open_access_only=open_access_only,
+        include_scihub=include_scihub,
+        scihub_fallback_limit=scihub_fallback_limit,
     )
     top_papers = pipeline["top_papers"]
     related_papers = pipeline["related_papers"]
     downloads = pipeline["downloads"]
+    scihub_downloads = pipeline["scihub_downloads"]
     libgen_results = pipeline["libgen_results"]
     libgen_downloads = pipeline["libgen_downloads"]
     all_warnings = pipeline["warnings"]
@@ -371,6 +431,7 @@ async def research_topic(
         "top_papers": [paper.to_dict() for paper in top_papers],
         "related_papers": [paper.to_dict() for paper in related_papers],
         "downloads": [document.to_dict() for document in downloads],
+        "scihub_downloads": [document.to_dict() for document in scihub_downloads],
         "libgen_results": [paper.to_dict() for paper in libgen_results],
         "libgen_downloads": [document.to_dict() for document in libgen_downloads],
         "zotero": zotero_sync,
@@ -388,6 +449,8 @@ async def deep_read_topic(
     top_chunks_per_paper: int = 5,
     chunk_size_chars: int = 5000,
     chunk_overlap_chars: int = 600,
+    include_scihub: bool = False,
+    scihub_fallback_limit: int = 2,
     from_year: int | None = None,
     to_year: int | None = None,
     open_access_only: bool = True,
@@ -397,7 +460,8 @@ async def deep_read_topic(
     create_collection_name: str | None = None,
     attach_pdfs: bool = True,
 ) -> dict:
-    """Search, download, extract full text, and return evidence chunks plus local PDF paths for direct inspection."""
+    """Search, download, extract full text, and return evidence chunks plus local PDF paths for direct inspection.
+    Set include_scihub=True to use Sci-Hub as a fallback for papers without open-access PDFs."""
     question = research_question or topic
     pipeline = await _run_research_pipeline(
         topic=topic,
@@ -410,12 +474,16 @@ async def deep_read_topic(
         from_year=from_year,
         to_year=to_year,
         open_access_only=open_access_only,
+        include_scihub=include_scihub,
+        scihub_fallback_limit=scihub_fallback_limit,
     )
     top_papers = pipeline["top_papers"]
     related_papers = pipeline["related_papers"]
     downloads = pipeline["downloads"]
+    scihub_downloads = pipeline["scihub_downloads"]
+    all_downloads = downloads + scihub_downloads
     all_warnings = pipeline["warnings"]
-    if not downloads:
+    if not all_downloads:
         all_warnings = all_warnings + [
             "Deep read icin indirilebilir PDF bulunamadi; bu durumda sadece bibliyografik arastirma sonucu doner.",
         ]
@@ -428,7 +496,7 @@ async def deep_read_topic(
             chunk_size_chars=chunk_size_chars,
             chunk_overlap_chars=chunk_overlap_chars,
         )
-        for document in downloads
+        for document in all_downloads
     ]
 
     report_service = get_report_service()
@@ -474,6 +542,7 @@ async def deep_read_topic(
         "top_papers": [paper.to_dict() for paper in top_papers],
         "related_papers": [paper.to_dict() for paper in related_papers],
         "downloads": [document.to_dict() for document in downloads],
+        "scihub_downloads": [document.to_dict() for document in scihub_downloads],
         "deep_reads": [artifact.to_dict(top_chunks=top_chunks_per_paper) for artifact in artifacts],
         "zotero": zotero_sync,
         "report_markdown": markdown,

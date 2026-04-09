@@ -44,7 +44,7 @@ One prompt. Six academic databases. Real PDFs. Real citations.
 | Reads actual PDFs | Nope. Web summaries. | Full text extraction |
 | Figures and tables | Text only | Page rendering to PNG |
 | Your library | Locked in their UI | Syncs to Zotero |
-| Sources | Generic web search | 6 academic databases |
+| Sources | Generic web search | 6 academic databases + Sci-Hub + LibGen |
 | Cost | $200/month | Free, MIT licensed |
 | Your data | Their cloud | Your machine |
 
@@ -123,9 +123,31 @@ uv run deep-research-mcp --transport streamable-http --host 127.0.0.1 --port 800
 | `find_similar_papers` | Related work expansion from a seed paper |
 | `inspect_open_access_pdf` | OA availability check and PDF preview |
 | `extract_local_pdf_text` | Text extraction from any local PDF |
+| `search_scihub` | Search Sci-Hub by DOI, title, or keyword (opt-in) |
+| `download_scihub_paper` | Download a paper via Sci-Hub by DOI (opt-in) |
 | `search_libgen` | Supplementary shadow library search |
 | `list_zotero_collections` | Browse your Zotero library |
 | `healthcheck` | Verify all connections are up |
+
+---
+
+## Sci-Hub integration (opt-in)
+
+Sci-Hub access is **disabled by default**. When enabled, it acts as a fallback for papers that are not available through open-access channels. To opt in, set:
+
+```bash
+SCIHUB_ENABLED=true
+```
+
+You can also customize mirrors:
+
+```bash
+SCIHUB_MIRRORS=https://sci-hub.se,https://sci-hub.st,https://sci-hub.ru
+```
+
+Once enabled, you can use `search_scihub` and `download_scihub_paper` directly, or pass `include_scihub=True` to `research_topic` / `deep_read_topic` for automatic fallback when OA PDFs are unavailable.
+
+> **Disclaimer:** Sci-Hub integration is provided strictly for **educational and research purposes**. The authors of this project do not host, operate, or maintain Sci-Hub. Users are solely responsible for ensuring that their use of Sci-Hub complies with all applicable laws and institutional policies in their jurisdiction. By enabling this feature, you acknowledge that the authors do not endorse, encourage, or condone copyright infringement of any kind. Use this tool responsibly and in accordance with copyright laws.
 
 ---
 
@@ -143,7 +165,8 @@ uv run deep-research-mcp --transport streamable-http --host 127.0.0.1 --port 800
 
 ```
 Topic --> Search 6 databases --> Resolve OA PDFs --> Download
-  --> Deep Read full text --> Extract evidence --> Render figures
+  --> [Sci-Hub fallback if enabled] --> Deep Read full text
+  --> Extract evidence --> Render figures
   --> Markdown report --> Zotero sync
 ```
 
@@ -155,8 +178,10 @@ Topic --> Search 6 databases --> Resolve OA PDFs --> Download
 4. Europe PMC
 5. Unpaywall
 6. Direct publisher links
+7. Sci-Hub (opt-in fallback, disabled by default)
+8. LibGen (supplemental, best-effort)
 
-No paywalls. No scraping. Real open-access academic papers.
+No paywalls by default. No scraping. Real open-access academic papers.
 
 ---
 
@@ -176,6 +201,10 @@ ZOTERO_BRIDGE_URL=http://127.0.0.1:24119
 # Web Zotero API (alternative to local)
 ZOTERO_LIBRARY_ID=
 ZOTERO_API_KEY=
+
+# Sci-Hub (disabled by default)
+SCIHUB_ENABLED=false
+SCIHUB_MIRRORS=https://sci-hub.se,https://sci-hub.st,https://sci-hub.ru
 
 # Institutional networks
 HTTP_PROXY=
@@ -200,6 +229,7 @@ src/deep_research_mcp/
   services/
     academic.py          Multi-source scholarly search
     open_access.py       OA resolution and PDF downloads
+    scihub.py            Sci-Hub paper resolution (opt-in)
     deep_read.py         Full-text extraction and page rendering
     zotero.py            Local and web Zotero integration
     reporting.py         Markdown report generation
@@ -231,6 +261,18 @@ PRs welcome. The most impactful areas:
 - More MCP client configs
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+---
+
+## Disclaimer
+
+This tool is designed for **academic research and educational purposes only**. The authors do not endorse or encourage any form of copyright infringement.
+
+- Open-access features use only legal, publicly available sources (Semantic Scholar, OpenAlex, arXiv, Europe PMC, Unpaywall).
+- Sci-Hub and LibGen integrations are **disabled by default** and provided as opt-in features. Users who enable these features are solely responsible for compliance with their local laws and institutional policies.
+- The authors of this project do not host, operate, or control any third-party services referenced herein.
+
+Please use this tool responsibly and respect intellectual property rights.
 
 ---
 

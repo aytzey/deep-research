@@ -59,6 +59,8 @@ Use prompts like:
 - Prefer `deep_read_topic` over raw `search_literature` when you want evidence-backed synthesis quickly.
 - If a claim depends on a figure or table, call `render_pdf_pages` instead of relying only on text extraction.
 - If Zotero is part of the workflow, call `healthcheck` first and only request writes after local mode is healthy.
+- When OA PDFs are not enough, use `include_scihub=True` in `research_topic` or `deep_read_topic` for Sci-Hub fallback (requires `SCIHUB_ENABLED=true`).
+- Use `search_scihub` and `download_scihub_paper` for direct DOI-based downloads via Sci-Hub.
 
 ## Where Claude Should Look Next
 

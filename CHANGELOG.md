@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0 - 2026-04-10
+
+- added **Sci-Hub integration** as opt-in paper download source (disabled by default)
+- new tools: `search_scihub` (DOI/title/keyword search) and `download_scihub_paper` (PDF download by DOI)
+- `research_topic` and `deep_read_topic` now accept `include_scihub=True` for automatic fallback
+- new config: `SCIHUB_ENABLED`, `SCIHUB_MIRRORS`, `SCIHUB_TIMEOUT_SEC`
+- added copyright disclaimer and responsible use notice
+- no new dependencies: uses existing `httpx` and `beautifulsoup4`
+
 ## 0.2.0 - 2026-04-09
 
 - rebranded to **Deep Research MCP**

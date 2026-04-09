@@ -48,6 +48,15 @@ Local mode uses:
 
 For sandboxed desktop installs such as Flatpak, attachment files can be staged under the Zotero home directory before import.
 
+### `services/scihub.py`
+
+Opt-in Sci-Hub integration (disabled by default, set `SCIHUB_ENABLED=true` to activate):
+
+- resolves DOIs through configurable Sci-Hub mirrors
+- uses CrossRef API for title-to-DOI and keyword lookups
+- downloads PDFs with retry logic and mirror fallback
+- integrates into the research pipeline as a fallback for non-OA papers
+
 ### `services/reporting.py`
 
 Produces Markdown reports for both standard research and deep-read workflows.
@@ -78,3 +87,4 @@ Generated files are written under `data/`:
 - custom CA support via `SSL_CERT_FILE`
 - cache fallback for temporary upstream failures
 - best-effort handling for unstable LibGen mirrors
+- Sci-Hub mirror rotation with retry and rate-limit awareness (opt-in)

@@ -26,6 +26,9 @@ class Settings:
     zotero_local: bool = False
     zotero_connector_url: str = "http://127.0.0.1:23119/connector/saveItems"
     zotero_bridge_url: str | None = "http://127.0.0.1:24119"
+    scihub_mirrors: tuple[str, ...] = ("https://sci-hub.se", "https://sci-hub.st", "https://sci-hub.ru")
+    scihub_timeout_sec: float = 30.0
+    scihub_enabled: bool = False
 
     @property
     def effective_zotero_library_id(self) -> str | None:
@@ -94,6 +97,15 @@ def load_settings() -> Settings:
         if mirror.strip()
     )
     zotero_local = os.getenv("ZOTERO_LOCAL", "").strip().lower() in {"1", "true", "yes", "on"}
+    scihub_enabled = os.getenv("SCIHUB_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+    scihub_mirrors = tuple(
+        m.strip().rstrip("/")
+        for m in os.getenv(
+            "SCIHUB_MIRRORS",
+            "https://sci-hub.se,https://sci-hub.st,https://sci-hub.ru",
+        ).split(",")
+        if m.strip()
+    )
     return Settings(
         openalex_email=os.getenv("OPENALEX_EMAIL"),
         semantic_scholar_api_key=os.getenv("SEMANTIC_SCHOLAR_API_KEY"),
@@ -112,4 +124,7 @@ def load_settings() -> Settings:
         zotero_local=zotero_local,
         zotero_connector_url=os.getenv("ZOTERO_CONNECTOR_URL", "http://127.0.0.1:23119/connector/saveItems"),
         zotero_bridge_url=os.getenv("ZOTERO_BRIDGE_URL", "http://127.0.0.1:24119") or None,
+        scihub_mirrors=scihub_mirrors,
+        scihub_timeout_sec=float(os.getenv("SCIHUB_TIMEOUT_SEC", "30")),
+        scihub_enabled=scihub_enabled,
     )
