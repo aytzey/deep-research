@@ -1,4 +1,12 @@
+![Zotero Researcher MCP banner](docs/hero.svg)
+
 # Zotero Researcher MCP
+
+[![CI](https://github.com/aytzey/Zotero-Researcher/actions/workflows/ci.yml/badge.svg)](https://github.com/aytzey/Zotero-Researcher/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/aytzey/Zotero-Researcher/blob/main/LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://github.com/aytzey/Zotero-Researcher/blob/main/pyproject.toml)
+[![GitHub stars](https://img.shields.io/github/stars/aytzey/Zotero-Researcher?style=social)](https://github.com/aytzey/Zotero-Researcher/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/aytzey/Zotero-Researcher?style=social)](https://github.com/aytzey/Zotero-Researcher/network/members)
 
 An MCP server that turns an LLM into a practical research workflow:
 
@@ -10,6 +18,18 @@ An MCP server that turns an LLM into a practical research workflow:
 - write results back into local Zotero or the Zotero Web API
 
 This project is designed for Codex, Claude, and other MCP clients that need a single tool surface for literature discovery, document inspection, and reference management.
+
+## At a Glance
+
+```mermaid
+flowchart LR
+    A[Topic or Question] --> B[Search Literature]
+    B --> C[Resolve OA PDF]
+    C --> D[Deep Read PDF]
+    D --> E[Extract Chunks and Evidence]
+    E --> F[Render Pages for Figures]
+    F --> G[Write Collection, Items, Notes to Zotero]
+```
 
 ## Why This Project
 
@@ -35,6 +55,13 @@ Most research agents can search and summarize. Very few can do the full loop wel
   - bridge-based collection, note, and attachment writes
 - Web Zotero API mode for remote or group libraries
 - Proxy, custom CA, retry, and cache support for restrictive institutional networks
+
+## Who It Is For
+
+- Researchers who want an agent to produce a literature review and preserve the result in Zotero
+- LLM tool builders who need a serious MCP surface for academic workflows
+- Teams working behind restrictive university or enterprise networks
+- Agents that need direct access to original PDFs, charts, tables, and page layouts
 
 ## Live-Verified Workflow
 
@@ -99,6 +126,14 @@ The project is OA-first by default and prioritizes:
 - `list_zotero_collections`
 - `research_topic`
 - `deep_read_topic`
+
+## Example Use Cases
+
+- Build a literature scan for a new thesis or grant topic
+- Compare related work across multiple OA sources
+- Let an agent inspect a figure-heavy PDF page by page
+- Generate a report and archive the sources in a new Zotero collection
+- Use Zotero locally without depending on a remote API key
 
 ## Project Layout
 
@@ -222,6 +257,14 @@ Run the test suite:
 uv run pytest
 ```
 
+## Community
+
+- Questions and workflow ideas: use GitHub Discussions
+- Bugs: open an issue with the bug template
+- New integrations or source adapters: open a feature request
+- Contributions: see [CONTRIBUTING.md](CONTRIBUTING.md)
+- Citation: see [CITATION.cff](CITATION.cff)
+
 ## Related Work
 
 The project was informed by existing Zotero and research MCP work. See [docs/related-projects.md](docs/related-projects.md).
@@ -235,3 +278,5 @@ The project was informed by existing Zotero and research MCP work. See [docs/rel
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+If this project is useful in your workflow, star the repository and open a discussion with your use case.

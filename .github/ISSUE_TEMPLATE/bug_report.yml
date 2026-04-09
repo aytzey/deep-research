@@ -1,0 +1,41 @@
+name: Bug report
+description: Report a reproducible problem in the MCP server or Zotero workflow
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened and what did you expect instead?
+    validations:
+      required: true
+  - type: dropdown
+    id: client
+    attributes:
+      label: MCP client
+      options:
+        - Codex
+        - Claude Desktop
+        - Cursor
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Include the tool call, command, or steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Python version, OS, Zotero mode, proxy or CA settings, and sanitized env vars
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste traceback or terminal output
+      render: shell

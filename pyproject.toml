@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "zotero-researcher-mcp"
-version = "0.1.0"
+version = "0.1.1"
 description = "MCP server for academic discovery, PDF inspection, deep reading, and Zotero syncing."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -45,6 +45,8 @@ dependencies = [
 Homepage = "https://github.com/aytzey/Zotero-Researcher"
 Repository = "https://github.com/aytzey/Zotero-Researcher"
 Issues = "https://github.com/aytzey/Zotero-Researcher/issues"
+Documentation = "https://github.com/aytzey/Zotero-Researcher#readme"
+Changelog = "https://github.com/aytzey/Zotero-Researcher/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [
