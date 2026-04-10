@@ -1,6 +1,6 @@
 <svg width="1280" height="640" viewBox="0 0 1280 640" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
-  <title id="title">Deep Research</title>
-  <desc id="desc">Open-source Deep Research that actually reads the papers. MCP server for Claude, Codex, and any AI agent.</desc>
+  <title id="title">Paper Pilot</title>
+  <desc id="desc">Your AI's research copilot. Searches 6 academic databases, downloads real PDFs, reads them cover to cover, extracts evidence, renders figures. MCP server for Claude, Codex, and any AI agent.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="640" gradientUnits="userSpaceOnUse">
       <stop stop-color="#0A0A0F"/>
@@ -15,15 +15,13 @@
       <stop stop-color="#3B82F6"/>
       <stop offset="1" stop-color="#8B5CF6"/>
     </linearGradient>
+    <linearGradient id="pipeline" x1="286" y1="0" x2="940" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3B82F6"/>
+      <stop offset="0.5" stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#10B981"/>
+    </linearGradient>
     <filter id="shadow" x="180" y="60" width="920" height="520" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
       <feDropShadow dx="0" dy="22" stdDeviation="28" flood-color="#000000" flood-opacity="0.4"/>
-    </filter>
-    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="40" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
     </filter>
   </defs>
 
@@ -36,41 +34,71 @@
     <rect x="220" y="86" width="840" height="468" rx="24" fill="url(#card)" stroke="#FFFFFF" stroke-opacity="0.08"/>
   </g>
 
-  <rect x="286" y="162" width="180" height="36" rx="18" fill="url(#accent)" fill-opacity="0.9"/>
-  <text x="376" y="186" text-anchor="middle" fill="white" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="700" letter-spacing="2">OPEN SOURCE</text>
+  <rect x="286" y="152" width="120" height="36" rx="18" fill="url(#accent)" fill-opacity="0.9"/>
+  <text x="346" y="176" text-anchor="middle" fill="white" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="700" letter-spacing="2">MCP</text>
 
-  <text x="286" y="265" fill="white" font-family="system-ui, -apple-system, sans-serif" font-size="72" font-weight="800" letter-spacing="-2">Deep Research</text>
-  <text x="286" y="320" fill="#94A3B8" font-family="system-ui, -apple-system, sans-serif" font-size="26" font-weight="400">Actually reads the papers. For Claude, Codex, and any MCP client.</text>
+  <text x="286" y="252" fill="white" font-family="system-ui, -apple-system, sans-serif" font-size="72" font-weight="800" letter-spacing="-2">Paper Pilot</text>
+  <text x="286" y="305" fill="#94A3B8" font-family="system-ui, -apple-system, sans-serif" font-size="24" font-weight="400">Your AI's research copilot</text>
 
-  <g transform="translate(286 380)">
-    <rect width="186" height="48" rx="24" fill="#3B82F6" fill-opacity="0.15" stroke="#3B82F6" stroke-opacity="0.3"/>
-    <text x="93" y="31" text-anchor="middle" fill="#93C5FD" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="700">Semantic Scholar</text>
+  <!-- Pipeline flow -->
+  <line x1="286" y1="345" x2="940" y2="345" stroke="url(#pipeline)" stroke-opacity="0.3" stroke-width="2"/>
+
+  <g transform="translate(286 360)">
+    <rect width="100" height="40" rx="8" fill="#3B82F6" fill-opacity="0.12" stroke="#3B82F6" stroke-opacity="0.25"/>
+    <text x="50" y="26" text-anchor="middle" fill="#93C5FD" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600">Prompt</text>
   </g>
-  <g transform="translate(488 380)">
-    <rect width="140" height="48" rx="24" fill="#8B5CF6" fill-opacity="0.15" stroke="#8B5CF6" stroke-opacity="0.3"/>
-    <text x="70" y="31" text-anchor="middle" fill="#C4B5FD" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="700">OpenAlex</text>
+  <text x="398" y="384" fill="#475569" font-family="system-ui, -apple-system, sans-serif" font-size="18">&#x2192;</text>
+  <g transform="translate(418 360)">
+    <rect width="100" height="40" rx="8" fill="#8B5CF6" fill-opacity="0.12" stroke="#8B5CF6" stroke-opacity="0.25"/>
+    <text x="50" y="26" text-anchor="middle" fill="#C4B5FD" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600">6 Databases</text>
   </g>
-  <g transform="translate(644 380)">
-    <rect width="100" height="48" rx="24" fill="#06B6D4" fill-opacity="0.15" stroke="#06B6D4" stroke-opacity="0.3"/>
-    <text x="50" y="31" text-anchor="middle" fill="#67E8F9" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="700">arXiv</text>
+  <text x="530" y="384" fill="#475569" font-family="system-ui, -apple-system, sans-serif" font-size="18">&#x2192;</text>
+  <g transform="translate(550 360)">
+    <rect width="80" height="40" rx="8" fill="#06B6D4" fill-opacity="0.12" stroke="#06B6D4" stroke-opacity="0.25"/>
+    <text x="40" y="26" text-anchor="middle" fill="#67E8F9" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600">PDF</text>
   </g>
-  <g transform="translate(760 380)">
-    <rect width="130" height="48" rx="24" fill="#10B981" fill-opacity="0.15" stroke="#10B981" stroke-opacity="0.3"/>
-    <text x="65" y="31" text-anchor="middle" fill="#6EE7B7" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="700">Crossref</text>
+  <text x="642" y="384" fill="#475569" font-family="system-ui, -apple-system, sans-serif" font-size="18">&#x2192;</text>
+  <g transform="translate(662 360)">
+    <rect width="100" height="40" rx="8" fill="#F59E0B" fill-opacity="0.12" stroke="#F59E0B" stroke-opacity="0.25"/>
+    <text x="50" y="26" text-anchor="middle" fill="#FCD34D" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600">Evidence</text>
+  </g>
+  <text x="774" y="384" fill="#475569" font-family="system-ui, -apple-system, sans-serif" font-size="18">&#x2192;</text>
+  <g transform="translate(794 360)">
+    <rect width="100" height="40" rx="8" fill="#10B981" fill-opacity="0.12" stroke="#10B981" stroke-opacity="0.25"/>
+    <text x="50" y="26" text-anchor="middle" fill="#6EE7B7" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600">Zotero</text>
   </g>
 
-  <line x1="286" y1="458" x2="940" y2="458" stroke="#FFFFFF" stroke-opacity="0.06"/>
+  <!-- Source badges -->
+  <g transform="translate(286 430)">
+    <rect width="150" height="34" rx="17" fill="#3B82F6" fill-opacity="0.10" stroke="#3B82F6" stroke-opacity="0.2"/>
+    <text x="75" y="23" text-anchor="middle" fill="#93C5FD" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="600">Semantic Scholar</text>
+  </g>
+  <g transform="translate(450 430)">
+    <rect width="112" height="34" rx="17" fill="#8B5CF6" fill-opacity="0.10" stroke="#8B5CF6" stroke-opacity="0.2"/>
+    <text x="56" y="23" text-anchor="middle" fill="#C4B5FD" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="600">OpenAlex</text>
+  </g>
+  <g transform="translate(576 430)">
+    <rect width="80" height="34" rx="17" fill="#06B6D4" fill-opacity="0.10" stroke="#06B6D4" stroke-opacity="0.2"/>
+    <text x="40" y="23" text-anchor="middle" fill="#67E8F9" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="600">arXiv</text>
+  </g>
+  <g transform="translate(670 430)">
+    <rect width="100" height="34" rx="17" fill="#10B981" fill-opacity="0.10" stroke="#10B981" stroke-opacity="0.2"/>
+    <text x="50" y="23" text-anchor="middle" fill="#6EE7B7" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="600">Crossref</text>
+  </g>
 
-  <g transform="translate(286 480)">
+  <!-- Bottom features -->
+  <line x1="286" y1="485" x2="940" y2="485" stroke="#FFFFFF" stroke-opacity="0.06"/>
+
+  <g transform="translate(286 504)">
     <circle cx="8" cy="8" r="8" fill="#3B82F6"/>
-    <text x="26" y="14" fill="#CBD5E1" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="500">Full PDF reading</text>
+    <text x="26" y="14" fill="#CBD5E1" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="500">Full PDF reading</text>
   </g>
-  <g transform="translate(500 480)">
+  <g transform="translate(480 504)">
     <circle cx="8" cy="8" r="8" fill="#8B5CF6"/>
-    <text x="26" y="14" fill="#CBD5E1" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="500">Figure rendering</text>
+    <text x="26" y="14" fill="#CBD5E1" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="500">Figure rendering</text>
   </g>
-  <g transform="translate(714 480)">
+  <g transform="translate(680 504)">
     <circle cx="8" cy="8" r="8" fill="#10B981"/>
-    <text x="26" y="14" fill="#CBD5E1" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="500">Zotero sync</text>
+    <text x="26" y="14" fill="#CBD5E1" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="500">Zotero sync</text>
   </g>
 </svg>

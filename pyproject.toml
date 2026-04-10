@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "deep-research-mcp"
-version = "0.3.0"
-description = "Open-source Deep Research. Search papers, read PDFs, extract evidence, render figures, sync to Zotero. MCP server for Claude, Codex, and any AI agent."
+name = "paper-pilot"
+version = "0.4.0"
+description = "Your AI's research copilot. Searches 6 academic databases, downloads real PDFs, reads them cover to cover, extracts evidence, renders figures. MCP server for Claude, Codex & any AI agent."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
@@ -14,6 +14,7 @@ authors = [
 ]
 keywords = [
   "mcp",
+  "mcp-server",
   "deep-research",
   "research-agent",
   "academic-search",
@@ -25,8 +26,8 @@ keywords = [
   "openalex",
   "arxiv",
   "literature-review",
-  "sci-hub",
   "paper-download",
+  "ai-agent",
 ]
 classifiers = [
   "License :: OSI Approved :: MIT License",
@@ -49,11 +50,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/aytzey/academic-research-mcp"
-Repository = "https://github.com/aytzey/academic-research-mcp"
-Issues = "https://github.com/aytzey/academic-research-mcp/issues"
-Documentation = "https://github.com/aytzey/academic-research-mcp#readme"
-Changelog = "https://github.com/aytzey/academic-research-mcp/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/aytzey/paper-pilot"
+Repository = "https://github.com/aytzey/paper-pilot"
+Issues = "https://github.com/aytzey/paper-pilot/issues"
+Documentation = "https://github.com/aytzey/paper-pilot#readme"
+Changelog = "https://github.com/aytzey/paper-pilot/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [
@@ -61,7 +62,7 @@ dev = [
 ]
 
 [project.scripts]
-deep-research-mcp = "deep_research_mcp.cli:main"
+paper-pilot = "paper_pilot.cli:main"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
@@ -69,4 +70,4 @@ testpaths = ["tests"]
 addopts = "-q"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/deep_research_mcp"]
+packages = ["src/paper_pilot"]

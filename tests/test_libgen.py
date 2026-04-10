@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from deep_research_mcp.config import Settings
-from deep_research_mcp.services.libgen import LibgenService
+from paper_pilot.config import Settings
+from paper_pilot.services.libgen import LibgenService
 
 
 def _settings(tmp_path: Path) -> Settings:

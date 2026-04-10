@@ -14,8 +14,8 @@ try:
 except ModuleNotFoundError:  # pragma: no cover
     import pymupdf as fitz
 
-from deep_research_mcp.config import Settings
-from deep_research_mcp.models import DownloadedDocument, PaperRecord, slugify, utc_timestamp
+from paper_pilot.config import Settings
+from paper_pilot.models import DownloadedDocument, PaperRecord, slugify, utc_timestamp
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ _DEFAULT_MIRRORS: tuple[str, ...] = (
 )
 
 _HEADERS = {
-    "User-Agent": "deep-research-mcp/0.2",
+    "User-Agent": "paper-pilot/0.4",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 }
 
@@ -88,7 +88,7 @@ class ScihubService:
         info = await self.fetch_by_doi(doi)
         pdf_url = info.get("pdf_url")
         if not pdf_url:
-            raise ValueError(f"Sci-Hub uzerinden PDF bulunamadi: {doi}")
+            raise ValueError(f"PDF not found via Sci-Hub: {doi}")
 
         paper = PaperRecord(
             source="scihub",
@@ -135,7 +135,7 @@ class ScihubService:
                         if pdf_url:
                             return pdf_url
                     except Exception as exc:
-                        logger.debug("Sci-Hub mirror %s basarisiz (attempt %d): %s", mirror, attempt, exc)
+                        logger.debug("Sci-Hub mirror %s failed (attempt %d): %s", mirror, attempt, exc)
                         continue
         return None
 
@@ -193,14 +193,14 @@ class ScihubService:
                     resp.raise_for_status()
                     content = resp.content
                     if not content.startswith(b"%PDF"):
-                        raise ValueError("Indirilen icerik PDF degil.")
+                        raise ValueError("Downloaded content is not a PDF.")
                     return content
                 except Exception as exc:
                     last_error = exc
                     if attempt == 2:
                         raise
                     await asyncio.sleep(1.5 * (attempt + 1))
-        raise ValueError(f"PDF indirilemedi: {last_error}")
+        raise ValueError(f"Failed to download PDF: {last_error}")
 
     @staticmethod
     def _inspect_pdf(
@@ -231,7 +231,7 @@ class ScihubService:
             try:
                 resp = await client.get(
                     f"https://api.crossref.org/works/{doi}",
-                    headers={"User-Agent": "deep-research-mcp/0.2 (mailto:research@example.com)"},
+                    headers={"User-Agent": "paper-pilot/0.4 (mailto:research@example.com)"},
                 )
                 if resp.status_code != 200:
                     return {}
@@ -247,7 +247,7 @@ class ScihubService:
                 resp = await client.get(
                     "https://api.crossref.org/works",
                     params={"query.title": title, "rows": "1"},
-                    headers={"User-Agent": "deep-research-mcp/0.2"},
+                    headers={"User-Agent": "paper-pilot/0.4"},
                 )
                 if resp.status_code != 200:
                     return None
@@ -265,7 +265,7 @@ class ScihubService:
                 resp = await client.get(
                     "https://api.crossref.org/works",
                     params={"query": keyword, "rows": str(limit)},
-                    headers={"User-Agent": "deep-research-mcp/0.2"},
+                    headers={"User-Agent": "paper-pilot/0.4"},
                 )
                 if resp.status_code != 200:
                     return []

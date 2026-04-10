@@ -10,8 +10,8 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - compatibility fallback
     import pymupdf as fitz
 
-from deep_research_mcp.config import Settings
-from deep_research_mcp.models import DownloadedDocument, PaperRecord, slugify, utc_timestamp
+from paper_pilot.config import Settings
+from paper_pilot.models import DownloadedDocument, PaperRecord, slugify, utc_timestamp
 
 
 class OpenAccessService:
@@ -32,7 +32,7 @@ class OpenAccessService:
             follow_redirects=True,
             trust_env=True,
             verify=self.settings.ssl_verify,
-            headers={"User-Agent": "deep-research-mcp/0.2", "Accept": "application/pdf,*/*"},
+            headers={"User-Agent": "paper-pilot/0.4", "Accept": "application/pdf,*/*"},
         ) as client:
             for paper in candidates:
                 if len(downloaded) >= max_papers:
@@ -42,7 +42,7 @@ class OpenAccessService:
                     document = await asyncio.to_thread(self.inspect_local_pdf, paper, path)
                     downloaded.append(document)
                 except Exception as exc:
-                    warnings.append(f"{paper.title} indirilemedi: {exc}")
+                    warnings.append(f"Failed to download {paper.title}: {exc}")
         return downloaded, warnings
 
     async def inspect_remote_pdf(
@@ -63,14 +63,14 @@ class OpenAccessService:
             follow_redirects=True,
             trust_env=True,
             verify=self.settings.ssl_verify,
-            headers={"User-Agent": "deep-research-mcp/0.2", "Accept": "application/pdf,*/*"},
+            headers={"User-Agent": "paper-pilot/0.4", "Accept": "application/pdf,*/*"},
         ) as client:
             path = await self._download_pdf(client, filename_hint, paper)
         return await asyncio.to_thread(self.inspect_local_pdf, paper, path)
 
     async def _download_pdf(self, client: httpx.AsyncClient, topic: str, paper: PaperRecord) -> Path:
         if not paper.pdf_url:
-            raise ValueError("Bu kayıt için PDF bağlantısı yok.")
+            raise ValueError("No PDF URL available for this record.")
         last_error: Exception | None = None
         content = b""
         for attempt in range(3):
@@ -79,7 +79,7 @@ class OpenAccessService:
                 response.raise_for_status()
                 content = response.content
                 if not content.startswith(b"%PDF"):
-                    raise ValueError("İndirilen içerik PDF görünmüyor.")
+                    raise ValueError("Downloaded content does not appear to be a PDF.")
                 break
             except Exception as exc:
                 last_error = exc
@@ -87,7 +87,7 @@ class OpenAccessService:
                     raise
                 await asyncio.sleep(1.5 * (attempt + 1))
         if not content.startswith(b"%PDF"):
-            raise ValueError(f"PDF indirilemedi: {last_error}")
+            raise ValueError(f"Failed to download PDF: {last_error}")
         filename = f"{slugify(topic)}-{slugify(paper.title, 50)}-{utc_timestamp()}.pdf"
         destination = self.settings.data_dir / "downloads" / filename
         destination.write_bytes(content)

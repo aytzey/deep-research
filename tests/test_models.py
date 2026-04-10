@@ -1,4 +1,4 @@
-from deep_research_mcp.models import PaperRecord, combine_papers, normalize_doi
+from paper_pilot.models import PaperRecord, combine_papers, normalize_doi
 
 
 def test_combine_papers_prefers_more_complete_record() -> None:

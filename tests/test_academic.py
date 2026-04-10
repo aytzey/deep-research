@@ -3,9 +3,9 @@ from pathlib import Path
 
 import httpx
 
-from deep_research_mcp.config import Settings
-from deep_research_mcp.models import PaperRecord
-from deep_research_mcp.services.academic import AcademicSearchService
+from paper_pilot.config import Settings
+from paper_pilot.models import PaperRecord
+from paper_pilot.services.academic import AcademicSearchService
 
 
 def _settings(tmp_path: Path) -> Settings:

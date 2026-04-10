@@ -1,12 +1,12 @@
 {
   "mcpServers": {
-    "deep-research": {
+    "paper-pilot": {
       "command": "uv",
       "args": [
         "--directory",
-        "/absolute/path/to/deep-research",
+        "/absolute/path/to/paper-pilot",
         "run",
-        "deep-research-mcp"
+        "paper-pilot"
       ],
       "env": {
         "OPENALEX_EMAIL": "you@example.com",

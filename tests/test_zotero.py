@@ -3,9 +3,9 @@ from unittest.mock import patch
 
 import pytest
 
-from deep_research_mcp.config import Settings
-from deep_research_mcp.models import PaperRecord
-from deep_research_mcp.services.zotero import ZoteroService
+from paper_pilot.config import Settings
+from paper_pilot.models import PaperRecord
+from paper_pilot.services.zotero import ZoteroService
 
 
 def _settings(tmp_path: Path, **overrides: object) -> Settings:
@@ -38,7 +38,7 @@ def test_local_mode_defaults_to_user_library_zero(tmp_path: Path) -> None:
 def test_local_client_uses_pyzotero_local_flag(tmp_path: Path) -> None:
     service = ZoteroService(_settings(tmp_path, zotero_local=True))
 
-    with patch("deep_research_mcp.services.zotero.pyzotero.Zotero") as zotero_ctor:
+    with patch("paper_pilot.services.zotero.pyzotero.Zotero") as zotero_ctor:
         service._client()
 
     args, kwargs = zotero_ctor.call_args

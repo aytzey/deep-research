@@ -5,9 +5,9 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - compatibility fallback
     import pymupdf as fitz
 
-from deep_research_mcp.config import Settings
-from deep_research_mcp.models import DownloadedDocument, PaperRecord
-from deep_research_mcp.services.deep_read import DeepReadingService
+from paper_pilot.config import Settings
+from paper_pilot.models import DownloadedDocument, PaperRecord
+from paper_pilot.services.deep_read import DeepReadingService
 
 
 def _settings(tmp_path: Path) -> Settings:

@@ -17,8 +17,8 @@ This document helps Claude and Codex users get started without reverse-engineeri
 
 | Client | Best For | Config Format | Start Command |
 | --- | --- | --- | --- |
-| Claude Desktop | long-form research and synthesis | JSON | `uv run deep-research-mcp` |
-| Codex | tool-driven iteration and repo work | TOML | `uv run deep-research-mcp` |
+| Claude Desktop | long-form research and synthesis | JSON | `uv run paper-pilot` |
+| Codex | tool-driven iteration and repo work | TOML | `uv run paper-pilot` |
 
 ## Suggested Workflow
 

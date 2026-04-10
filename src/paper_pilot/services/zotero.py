@@ -12,9 +12,9 @@ import urllib.request
 import httpx
 from pyzotero import zotero as pyzotero
 
-from deep_research_mcp.config import Settings
-from deep_research_mcp.models import DownloadedDocument, PaperRecord, normalize_doi, normalize_title
-from deep_research_mcp.services.reporting import ReportService
+from paper_pilot.config import Settings
+from paper_pilot.models import DownloadedDocument, PaperRecord, normalize_doi, normalize_title
+from paper_pilot.services.reporting import ReportService
 
 
 class ZoteroService:
@@ -39,8 +39,8 @@ class ZoteroService:
             status["write_capability"] = "full" if bridge["reachable"] else "metadata-only"
             if not bridge["reachable"]:
                 status["write_note"] = (
-                    "Tam local sync icin /execute sunan bir Zotero bridge plugin'i gerekli. "
-                    "zoty-bridge uyumludur."
+                    "Full local sync requires a Zotero bridge plugin that exposes /execute. "
+                    "zoty-bridge is compatible."
                 )
         return status
 
@@ -49,8 +49,8 @@ class ZoteroService:
         if self.settings.zotero_mode == "local":
             if not library_id:
                 raise RuntimeError(
-                    "Yerel Zotero icin library ID cozulmedi. User library icin "
-                    "`ZOTERO_LOCAL=true` yeterlidir; group library icin `ZOTERO_LIBRARY_ID` verin."
+                    "Library ID could not be resolved for local Zotero. "
+                    "`ZOTERO_LOCAL=true` is sufficient for user libraries; set `ZOTERO_LIBRARY_ID` for group libraries."
                 )
             return pyzotero.Zotero(
                 library_id,
@@ -60,8 +60,8 @@ class ZoteroService:
             )
         if self.settings.zotero_mode != "web":
             raise RuntimeError(
-                "Zotero devre disi. Web icin `ZOTERO_LIBRARY_ID` + `ZOTERO_API_KEY`, "
-                "local icin `ZOTERO_LOCAL=true` kullanin."
+                "Zotero is disabled. Set `ZOTERO_LIBRARY_ID` + `ZOTERO_API_KEY` for web mode, "
+                "or `ZOTERO_LOCAL=true` for local mode."
             )
         return pyzotero.Zotero(
             library_id,
@@ -99,17 +99,17 @@ class ZoteroService:
         if self.settings.zotero_mode != "local":
             return
         if self.settings.zotero_library_type != "user":
-            raise RuntimeError("Yerel bridge yazimi su an yalnizca `user` library icin destekleniyor.")
+            raise RuntimeError("Local bridge writes are currently supported only for `user` libraries.")
         if not self.settings.zotero_bridge_url:
             raise RuntimeError(
-                "Yerel Zotero yazimi icin `ZOTERO_BRIDGE_URL` gerekli. `zoty-bridge` benzeri "
-                "bir plugin ile `/execute` endpoint'i acin."
+                "Local Zotero writes require `ZOTERO_BRIDGE_URL`. Enable the `/execute` endpoint "
+                "with a plugin like `zoty-bridge`."
             )
         if not self._bridge_status()["reachable"]:
             raise RuntimeError(
-                "Yerel Zotero bridge endpoint'ine erisilemiyor. Zotero acik olmali ve "
-                "`extensions.zotero.httpServer.localAPI.enabled=true` ile local API aktif olmali. "
-                "Tam local sync icin `zoty-bridge` benzeri bir plugin de calismali."
+                "Cannot reach the local Zotero bridge endpoint. Zotero must be running with "
+                "`extensions.zotero.httpServer.localAPI.enabled=true`. "
+                "For full local sync, a plugin like `zoty-bridge` must also be active."
             )
 
     async def list_collections(self, query: str | None = None) -> list[dict[str, Any]]:
@@ -155,7 +155,7 @@ class ZoteroService:
             for collection in collections:
                 if collection.get("key") == existing_collection_key:
                     return {"key": collection["key"], "name": collection.get("name"), "created": False}
-            raise RuntimeError(f"Zotero koleksiyonu bulunamadi: {existing_collection_key}")
+            raise RuntimeError(f"Zotero collection not found: {existing_collection_key}")
 
         if existing_collection_name:
             lowered = existing_collection_name.lower().strip()
@@ -166,7 +166,7 @@ class ZoteroService:
 
         target_name = create_collection_name or existing_collection_name
         if not target_name:
-            raise RuntimeError("Yazma icin mevcut koleksiyon anahtari/adi veya yeni koleksiyon adi gerekli.")
+            raise RuntimeError("An existing collection key/name or a new collection name is required for writes.")
 
         if self.settings.zotero_mode == "local":
             self._require_local_write_support()
@@ -176,7 +176,7 @@ class ZoteroService:
         response = client.create_collections([{"name": target_name}])
         new_key = next(iter((response.get("success") or {}).values()), None)
         if not new_key:
-            raise RuntimeError(f"Koleksiyon olusturulamadi: {response}")
+            raise RuntimeError(f"Failed to create collection: {response}")
         return {"key": new_key, "name": target_name, "created": True}
 
     async def sync_topic(
@@ -242,12 +242,12 @@ class ZoteroService:
                 template["DOI"] = paper.doi
             if paper.venue:
                 template["publicationTitle"] = paper.venue
-            template["extra"] = f"Imported by deep-research-mcp\nSource: {paper.source}\nSource ID: {paper.source_id}"
+            template["extra"] = f"Imported by paper-pilot\nSource: {paper.source}\nSource ID: {paper.source_id}"
 
             response = client.create_items([template])
             item_key = next(iter((response.get("success") or {}).values()), None)
             if not item_key:
-                raise RuntimeError(f"Zotero item olusturulamadi: {response}")
+                raise RuntimeError(f"Failed to create Zotero item: {response}")
             created_items.append(item_key)
 
             if attach_pdfs and paper.dedupe_key() in download_map:
@@ -288,7 +288,7 @@ class ZoteroService:
             if existing:
                 item_key = existing.get("key") or existing.get("data", {}).get("key")
                 if not item_key:
-                    raise RuntimeError(f"Mevcut Zotero kaydinin anahtari cozulmedi: {paper.title}")
+                    raise RuntimeError(f"Could not resolve key for existing Zotero item: {paper.title}")
                 self._add_item_to_collection_via_bridge(item_key, collection_key)
                 reused_items.append(item_key)
                 if attach_pdfs and paper.dedupe_key() in download_map:
@@ -299,10 +299,10 @@ class ZoteroService:
             self._push_to_connector(connector_item, paper.url or (f"https://doi.org/{paper.doi}" if paper.doi else ""))
             created = self._wait_for_item(client, paper)
             if not created:
-                raise RuntimeError(f"Yerel Zotero item anahtari bulunamadi: {paper.title}")
+                raise RuntimeError(f"Local Zotero item key not found: {paper.title}")
             item_key = created.get("key") or created.get("data", {}).get("key")
             if not item_key:
-                raise RuntimeError(f"Yerel Zotero item anahtari bulunamadi: {paper.title}")
+                raise RuntimeError(f"Local Zotero item key not found: {paper.title}")
 
             self._add_item_to_collection_via_bridge(item_key, collection_key)
             if attach_pdfs and paper.dedupe_key() in download_map:
@@ -328,7 +328,7 @@ class ZoteroService:
             "date": str(paper.year) if paper.year else "",
             "url": paper.url or "",
             "tags": [{"tag": f"topic:{topic}"}, {"tag": f"source:{paper.source}"}],
-            "extra": f"Imported by deep-research-mcp\nSource: {paper.source}\nSource ID: {paper.source_id}",
+            "extra": f"Imported by paper-pilot\nSource: {paper.source}\nSource ID: {paper.source_id}",
         }
         if paper.doi:
             item["DOI"] = paper.doi
@@ -355,11 +355,11 @@ class ZoteroService:
                 },
             )
             if response.status_code not in {200, 201}:
-                raise RuntimeError(f"Zotero connector item olusturulamadi: {response.status_code} {response.text}")
+                raise RuntimeError(f"Zotero connector failed to create item: {response.status_code} {response.text}")
 
     def _bridge_execute(self, code: str) -> dict[str, Any]:
         if not self.settings.zotero_bridge_url:
-            raise RuntimeError("Zotero bridge URL tanimli degil.")
+            raise RuntimeError("Zotero bridge URL is not configured.")
         payload_raw = json.dumps({"code": code}).encode("utf-8")
         request = urllib.request.Request(
             urljoin(self.settings.zotero_bridge_url.rstrip("/") + "/", "execute"),
@@ -370,7 +370,7 @@ class ZoteroService:
         with urllib.request.urlopen(request, timeout=15.0) as response:
             payload = json.loads(response.read().decode("utf-8"))
         if not payload.get("ok"):
-            raise RuntimeError(f"Zotero bridge JS hatasi: {payload.get('error', 'unknown')}")
+            raise RuntimeError(f"Zotero bridge JS error: {payload.get('error', 'unknown')}")
         result = payload.get("result")
         if isinstance(result, str):
             try:
@@ -393,7 +393,7 @@ class ZoteroService:
 }})();"""
         )
         if not result.get("key"):
-            raise RuntimeError(f"Yerel Zotero koleksiyonu olusturulamadi: {result}")
+            raise RuntimeError(f"Failed to create local Zotero collection: {result}")
         return result
 
     def _add_item_to_collection_via_bridge(self, item_key: str, collection_key: str) -> None:
@@ -411,7 +411,7 @@ class ZoteroService:
 }})();"""
         )
         if result.get("error"):
-            raise RuntimeError(f"Yerel Zotero koleksiyon atamasi basarisiz: {result}")
+            raise RuntimeError(f"Failed to add item to local Zotero collection: {result}")
 
     def _attach_pdf_via_bridge(self, item_key: str, path: Path) -> None:
         staged_path = self._stage_path_for_local_zotero(path)
@@ -429,7 +429,7 @@ class ZoteroService:
 }})();"""
         )
         if result.get("error"):
-            raise RuntimeError(f"Yerel Zotero PDF ekleme basarisiz: {result}")
+            raise RuntimeError(f"Failed to attach PDF to local Zotero item: {result}")
         if staged_path != path and staged_path.exists():
             staged_path.unlink(missing_ok=True)
 

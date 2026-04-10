@@ -304,40 +304,6 @@ wheels = [
 ]
 
 [[package]]
-name = "deep-research-mcp"
-version = "0.3.0"
-source = { editable = "." }
-dependencies = [
-    { name = "beautifulsoup4" },
-    { name = "httpx" },
-    { name = "lxml" },
-    { name = "mcp" },
-    { name = "pymupdf" },
-    { name = "python-dotenv" },
-    { name = "pyzotero" },
-    { name = "requests" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "pytest" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "beautifulsoup4", specifier = ">=4.14.3" },
-    { name = "httpx", specifier = ">=0.28.1" },
-    { name = "lxml", specifier = ">=6.0.2" },
-    { name = "mcp", specifier = ">=1.12.4" },
-    { name = "pymupdf", specifier = ">=1.24.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.0" },
-    { name = "python-dotenv", specifier = ">=1.2.2" },
-    { name = "pyzotero", specifier = ">=1.6.11" },
-    { name = "requests", specifier = ">=2.33.1" },
-]
-provides-extras = ["dev"]
-
-[[package]]
 name = "feedparser"
 version = "6.0.12"
 source = { registry = "https://pypi.org/simple" }
@@ -575,6 +541,40 @@ sdist = { url = "https://files.pythonhosted.org/packages/65/ee/299d360cdc32edc7d
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b7/b9/c538f279a4e237a006a2c98387d081e9eb060d203d8ed34467cc0f0b9b53/packaging-26.0-py3-none-any.whl", hash = "sha256:b36f1fef9334a5588b4166f8bcd26a14e521f2b55e6b9de3aaa80d3ff7a37529", size = 74366, upload-time = "2026-01-21T20:50:37.788Z" },
 ]
+
+[[package]]
+name = "paper-pilot"
+version = "0.4.0"
+source = { editable = "." }
+dependencies = [
+    { name = "beautifulsoup4" },
+    { name = "httpx" },
+    { name = "lxml" },
+    { name = "mcp" },
+    { name = "pymupdf" },
+    { name = "python-dotenv" },
+    { name = "pyzotero" },
+    { name = "requests" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "beautifulsoup4", specifier = ">=4.14.3" },
+    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "lxml", specifier = ">=6.0.2" },
+    { name = "mcp", specifier = ">=1.12.4" },
+    { name = "pymupdf", specifier = ">=1.24.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.0" },
+    { name = "python-dotenv", specifier = ">=1.2.2" },
+    { name = "pyzotero", specifier = ">=1.6.11" },
+    { name = "requests", specifier = ">=2.33.1" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "pluggy"

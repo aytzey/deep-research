@@ -1,4 +1,4 @@
-from deep_research_mcp.cli import main
+from paper_pilot.cli import main
 
 
 if __name__ == "__main__":

@@ -15,8 +15,8 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - compatibility fallback
     import pymupdf as fitz
 
-from deep_research_mcp.config import Settings
-from deep_research_mcp.models import DownloadedDocument, PaperRecord, slugify, utc_timestamp
+from paper_pilot.config import Settings
+from paper_pilot.models import DownloadedDocument, PaperRecord, slugify, utc_timestamp
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -72,7 +72,7 @@ class LibgenService:
     ) -> LibgenSearchBundle:
         warnings: list[str] = []
         if len(query.strip()) < 3:
-            return LibgenSearchBundle(results=[], warnings=["LibGen sorgusu en az 3 karakter olmalı."])
+            return LibgenSearchBundle(results=[], warnings=["LibGen query must be at least 3 characters."])
 
         session = requests.Session()
         session.headers.update(
@@ -87,9 +87,9 @@ class LibgenService:
                 records = self._search_mirror(session, mirror, query, search_type, limit, allowed_extensions)
                 if records:
                     return LibgenSearchBundle(results=records, warnings=warnings)
-                warnings.append(f"{mirror} sonuç döndürmedi.")
+                warnings.append(f"{mirror} returned no results.")
             except Exception as exc:
-                warnings.append(f"{mirror} başarısız oldu: {exc}")
+                warnings.append(f"{mirror} failed: {exc}")
 
         return LibgenSearchBundle(results=[], warnings=warnings)
 
@@ -183,15 +183,15 @@ class LibgenService:
     def _download_preview_sync(self, item: dict[str, Any], topic_hint: str | None) -> DownloadedDocument:
         extension = (item.get("Extension") or "").lower()
         if extension != "pdf":
-            raise RuntimeError(f"Önizleme yalnızca PDF için destekleniyor. Bu kayıt: {extension or 'unknown'}")
+            raise RuntimeError(f"Preview is only supported for PDF files. This record: {extension or 'unknown'}")
 
         mirror_url = item.get("Mirror_1")
         if not mirror_url:
-            raise RuntimeError("Mirror_1 alanı eksik.")
+            raise RuntimeError("Mirror_1 field is missing.")
 
         links = self.resolve_download_links(mirror_url)
         if not links:
-            raise RuntimeError("İndirilebilir bağlantı çözümlenemedi.")
+            raise RuntimeError("No downloadable link could be resolved.")
 
         download_url = next((links[source] for source in DOWNLOAD_SOURCES if source in links), next(iter(links.values())))
         response = requests.get(
@@ -203,7 +203,7 @@ class LibgenService:
         )
         response.raise_for_status()
         if not response.content.startswith(b"%PDF"):
-            raise RuntimeError("İndirilen içerik PDF görünmüyor.")
+            raise RuntimeError("Downloaded content does not appear to be a PDF.")
 
         filename = f"{slugify(topic_hint or item.get('Title') or 'libgen')}-{utc_timestamp()}.pdf"
         destination = self.settings.data_dir / "downloads" / filename

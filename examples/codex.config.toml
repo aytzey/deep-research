@@ -1,8 +1,8 @@
-[mcp_servers.deep_research]
+[mcp_servers.paper_pilot]
 command = "uv"
-args = ["--directory", "/absolute/path/to/deep-research", "run", "deep-research-mcp"]
+args = ["--directory", "/absolute/path/to/paper-pilot", "run", "paper-pilot"]
 
-[mcp_servers.deep_research.env]
+[mcp_servers.paper_pilot.env]
 OPENALEX_EMAIL = "you@example.com"
 UNPAYWALL_EMAIL = "you@example.com"
 ZOTERO_LOCAL = "true"

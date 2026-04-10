@@ -2,7 +2,7 @@
 
 ## Goal
 
-`deep-research-mcp` exposes an MCP surface that lets an agent move from topic discovery to document inspection to Zotero persistence without leaving one server.
+`paper-pilot` exposes an MCP surface that lets an agent move from topic discovery to document inspection to Zotero persistence without leaving one server.
 
 ## Main Components
 

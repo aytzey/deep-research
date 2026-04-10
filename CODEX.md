@@ -1,6 +1,6 @@
 # CODEX.md
 
-This file is the Codex-specific operating guide for `deep-research-mcp`.
+This file is the Codex-specific operating guide for `paper-pilot`.
 
 ## Best Fit
 
@@ -17,11 +17,11 @@ Add an MCP server block to `~/.codex/config.toml`. A ready-made snippet lives in
 Minimal config:
 
 ```toml
-[mcp_servers.deep_research]
+[mcp_servers.paper_pilot]
 command = "uv"
-args = ["--directory", "/absolute/path/to/deep-research", "run", "deep-research-mcp"]
+args = ["--directory", "/absolute/path/to/paper-pilot", "run", "paper-pilot"]
 
-[mcp_servers.deep_research.env]
+[mcp_servers.paper_pilot.env]
 OPENALEX_EMAIL = "you@example.com"
 UNPAYWALL_EMAIL = "you@example.com"
 ZOTERO_LOCAL = "true"

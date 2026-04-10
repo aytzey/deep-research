@@ -5,23 +5,23 @@ from functools import lru_cache
 
 from mcp.server.fastmcp import FastMCP
 
-from deep_research_mcp.config import Settings, load_settings
-from deep_research_mcp.models import PaperRecord
-from deep_research_mcp.services.academic import AcademicSearchService
-from deep_research_mcp.services.deep_read import DeepReadingService
-from deep_research_mcp.services.libgen import LibgenService
-from deep_research_mcp.services.open_access import OpenAccessService
-from deep_research_mcp.services.reporting import ReportService
-from deep_research_mcp.services.scihub import ScihubService
-from deep_research_mcp.services.zotero import ZoteroService
+from paper_pilot.config import Settings, load_settings
+from paper_pilot.models import PaperRecord
+from paper_pilot.services.academic import AcademicSearchService
+from paper_pilot.services.deep_read import DeepReadingService
+from paper_pilot.services.libgen import LibgenService
+from paper_pilot.services.open_access import OpenAccessService
+from paper_pilot.services.reporting import ReportService
+from paper_pilot.services.scihub import ScihubService
+from paper_pilot.services.zotero import ZoteroService
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 mcp = FastMCP(
-    "Deep Research",
+    "Paper Pilot",
     instructions=(
-        "Open-source Deep Research agent. Searches academic databases, downloads open-access PDFs, "
+        "Your AI's research copilot. Searches 6 academic databases, downloads real PDFs, "
         "extracts full text with evidence chunking, renders figures, and syncs everything to Zotero. "
         "When using shadow-library sources, surface provenance and keep them supplemental."
     ),
@@ -118,7 +118,7 @@ async def _run_research_pipeline(
                 doc = await scihub_service.download_paper(doi=paper.doi, topic_hint=topic)
                 scihub_downloads.append(doc)
             except Exception as exc:
-                scihub_warnings.append(f"Sci-Hub fallback basarisiz ({paper.title}): {exc}")
+                scihub_warnings.append(f"Sci-Hub fallback failed ({paper.title}): {exc}")
 
     libgen_results: list[PaperRecord] = []
     libgen_downloads = []
@@ -136,7 +136,7 @@ async def _run_research_pipeline(
             try:
                 libgen_downloads.append(await libgen_service.download_preview(paper.raw, topic_hint=topic))
             except Exception as exc:
-                libgen_warnings.append(f"LibGen preview alınamadı ({paper.title}): {exc}")
+                libgen_warnings.append(f"LibGen preview unavailable ({paper.title}): {exc}")
 
     all_warnings = search_bundle.warnings + related_warnings + download_warnings + scihub_warnings + libgen_warnings
     return {
@@ -485,7 +485,7 @@ async def deep_read_topic(
     all_warnings = pipeline["warnings"]
     if not all_downloads:
         all_warnings = all_warnings + [
-            "Deep read icin indirilebilir PDF bulunamadi; bu durumda sadece bibliyografik arastirma sonucu doner.",
+            "No downloadable PDF found for deep read; returning bibliographic results only.",
         ]
 
     deep_read_service = get_deep_read_service()
@@ -547,7 +547,7 @@ async def deep_read_topic(
         "zotero": zotero_sync,
         "report_markdown": markdown,
         "agent_notes": [
-            "Grafikler ve tablolar icin deep_reads[*].pdf_path uzerinden dogrudan PDF'e git.",
-            "Metin tabanli karsilastirma icin deep_reads[*].text_path ve chunk_manifest_path kullan.",
+            "For figures and tables, open the PDF directly via deep_reads[*].pdf_path.",
+            "For text-based comparison, use deep_reads[*].text_path and chunk_manifest_path.",
         ],
     }

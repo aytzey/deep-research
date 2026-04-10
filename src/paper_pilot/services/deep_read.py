@@ -9,8 +9,8 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - compatibility fallback
     import pymupdf as fitz
 
-from deep_research_mcp.config import Settings
-from deep_research_mcp.models import DeepReadArtifact, DownloadedDocument, PaperRecord, TextChunk, slugify
+from paper_pilot.config import Settings
+from paper_pilot.models import DeepReadArtifact, DownloadedDocument, PaperRecord, TextChunk, slugify
 
 _STOPWORDS = {
     "a",
@@ -53,15 +53,15 @@ class DeepReadingService:
         chunk_overlap_chars: int = 600,
     ) -> DeepReadArtifact:
         if chunk_size_chars <= 0:
-            raise ValueError("chunk_size_chars pozitif olmali.")
+            raise ValueError("chunk_size_chars must be positive.")
         if chunk_overlap_chars < 0:
-            raise ValueError("chunk_overlap_chars negatif olamaz.")
+            raise ValueError("chunk_overlap_chars must not be negative.")
         if chunk_overlap_chars >= chunk_size_chars:
-            raise ValueError("chunk_overlap_chars, chunk_size_chars'tan kucuk olmali.")
+            raise ValueError("chunk_overlap_chars must be less than chunk_size_chars.")
 
         pdf_path = document.path.expanduser().resolve()
         if not pdf_path.exists():
-            raise FileNotFoundError(f"PDF bulunamadi: {pdf_path}")
+            raise FileNotFoundError(f"PDF not found: {pdf_path}")
 
         page_blocks, page_count, preview = self._read_pdf_pages(pdf_path)
         full_text, page_spans = self._join_page_blocks(page_blocks)
@@ -165,15 +165,15 @@ class DeepReadingService:
     ) -> list[Path]:
         path = Path(pdf_path).expanduser().resolve()
         if not path.exists():
-            raise FileNotFoundError(f"PDF bulunamadi: {path}")
+            raise FileNotFoundError(f"PDF not found: {path}")
         if scale <= 0:
-            raise ValueError("scale pozitif olmali.")
+            raise ValueError("scale must be positive.")
 
         renders: list[Path] = []
         with fitz.open(path) as document:
             for page_number in page_numbers:
                 if page_number < 1 or page_number > document.page_count:
-                    raise ValueError(f"Gecersiz sayfa numarasi: {page_number}")
+                    raise ValueError(f"Invalid page number: {page_number}")
                 page = document.load_page(page_number - 1)
                 pixmap = page.get_pixmap(matrix=fitz.Matrix(scale, scale), alpha=False)
                 destination = self.settings.render_dir / f"{slugify(path.stem, 60)}-page-{page_number:03d}.png"

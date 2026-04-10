@@ -3,8 +3,8 @@ from __future__ import annotations
 import html
 from pathlib import Path
 
-from deep_research_mcp.config import Settings
-from deep_research_mcp.models import DeepReadArtifact, DownloadedDocument, PaperRecord, slugify, utc_timestamp
+from paper_pilot.config import Settings
+from paper_pilot.models import DeepReadArtifact, DownloadedDocument, PaperRecord, slugify, utc_timestamp
 
 
 class ReportService:
@@ -32,10 +32,10 @@ class ReportService:
             [
                 "## Short Take",
                 "",
-                f"- Toplanan benzersiz kayıt: {len(papers)}",
-                f"- Benzer çalışma önerisi: {len(related)}",
-                f"- Açık erişim indirilen PDF: {len(downloads)}",
-                f"- LibGen destekleyici sonuç: {len(supplemental_records)}",
+                f"- Unique records collected: {len(papers)}",
+                f"- Similar work suggestions: {len(related)}",
+                f"- Open-access PDFs downloaded: {len(downloads)}",
+                f"- LibGen supplemental results: {len(supplemental_records)}",
                 "",
             ]
         )
@@ -92,7 +92,7 @@ class ReportService:
         if supplemental_records:
             lines.append("## LibGen Supplemental Material")
             lines.append("")
-            lines.append("Bu bölüm gölge kütüphane sonuçlarını içerir; doğruluk ve telif durumu ayrıca değerlendirilmelidir.")
+            lines.append("This section contains shadow library results; accuracy and copyright status should be verified independently.")
             lines.append("")
             for index, record in enumerate(supplemental_records[:10], start=1):
                 item = record.raw
@@ -124,10 +124,10 @@ class ReportService:
             [
                 "## Next Steps",
                 "",
-                "- En güçlü 3-5 makalenin yöntem bölümünü karşılaştır.",
-                "- Ortak veri kümeleri, benchmark'lar ve evaluation ölçütlerini çıkar.",
-                "- DOI ve venue bilgisi eksik kayıtları elle doğrula.",
-                "- Zotero tarafında konu etiketi ve alt koleksiyon ayrımı yap.",
+                "- Compare the methods sections of the top 3-5 papers.",
+                "- Extract shared datasets, benchmarks, and evaluation metrics.",
+                "- Manually verify records missing DOI or venue information.",
+                "- Organize Zotero with topic tags and sub-collections.",
                 "",
             ]
         )
@@ -205,9 +205,9 @@ class ReportService:
             [
                 "## Agent Notes",
                 "",
-                "- Grafik, tablo ve layout incelemesi icin dogrudan PDF yolunu kullan.",
-                "- Metin tabanli karsilastirma icin `text_path` ve `chunk_manifest_path` kullan.",
-                "- Kanit cikarirken sayfa araligini not et.",
+                "- For figures, tables, and layout review, open the PDF directly via its path.",
+                "- For text-based comparison, use `text_path` and `chunk_manifest_path`.",
+                "- Note the page range when extracting evidence.",
                 "",
             ]
         )

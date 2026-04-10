@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This file is the shared entry point for any coding or research agent working with `deep-research-mcp`.
+This file is the shared entry point for any coding or research agent working with `paper-pilot`.
 
 ## What This Repository Does
 
@@ -19,8 +19,8 @@ If you need context fast, read files in this order:
 
 1. [README.md](README.md)
 2. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-3. [src/deep_research_mcp/server.py](src/deep_research_mcp/server.py)
-4. [src/deep_research_mcp/services/zotero.py](src/deep_research_mcp/services/zotero.py)
+3. [src/paper_pilot/server.py](src/paper_pilot/server.py)
+4. [src/paper_pilot/services/zotero.py](src/paper_pilot/services/zotero.py)
 5. [CLAUDE.md](CLAUDE.md) or [CODEX.md](CODEX.md), depending on the client
 
 ## Recommended Tool Order
@@ -88,7 +88,7 @@ The implementation is organized around service modules:
 - `services/scihub.py`: Sci-Hub paper resolution and download (opt-in)
 - `services/reporting.py`: report generation
 
-Tool entry points are defined in [src/deep_research_mcp/server.py](src/deep_research_mcp/server.py).
+Tool entry points are defined in [src/paper_pilot/server.py](src/paper_pilot/server.py).
 
 ## Good Default Prompt Shapes
 

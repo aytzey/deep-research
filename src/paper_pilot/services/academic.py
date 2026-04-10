@@ -14,8 +14,8 @@ from urllib.parse import quote
 
 import httpx
 
-from deep_research_mcp.config import Settings
-from deep_research_mcp.models import PaperRecord, combine_papers, normalize_doi
+from paper_pilot.config import Settings
+from paper_pilot.models import PaperRecord, combine_papers, normalize_doi
 
 SEMANTIC_SCHOLAR_FIELDS = ",".join(
     [
@@ -81,8 +81,8 @@ class AcademicSearchService:
 
     def _user_agent(self) -> str:
         if self.settings.openalex_email:
-            return f"deep-research-mcp/0.2 ({self.settings.openalex_email})"
-        return "deep-research-mcp/0.2"
+            return f"paper-pilot/0.4 ({self.settings.openalex_email})"
+        return "paper-pilot/0.4"
 
     async def search_literature(
         self,
@@ -115,7 +115,7 @@ class AcademicSearchService:
                 strict=True,
             ):
                 if isinstance(result, Exception):
-                    warnings.append(f"{source_name} araması başarısız oldu: {self._format_exception(result)}")
+                    warnings.append(f"{source_name} search failed: {self._format_exception(result)}")
                     continue
                 combined.extend(result)
 
@@ -144,7 +144,7 @@ class AcademicSearchService:
             ) as client:
                 search_results = await self._search_semantic_scholar(client, seed_doi or seed_title, 1, None, None, False)
                 if not search_results:
-                    raise RuntimeError("seed kaydı bulunamadı")
+                    raise RuntimeError("seed record not found")
 
                 paper_id = search_results[0].source_id
                 params = {
@@ -169,7 +169,7 @@ class AcademicSearchService:
         except Exception as exc:
             fallback = await self.search_literature(seed_title, limit_per_source=max(limit // 2, 1), open_access_only=open_access_only)
             fallback.warnings.append(
-                f"Semantic Scholar öneri ucu kullanılamadı ({exc}); anahtar kelime aramasına düşüldü."
+                f"Semantic Scholar recommendation endpoint unavailable ({exc}); fell back to keyword search."
             )
             return SearchBundle(results=fallback.results[:limit], warnings=fallback.warnings)
 
@@ -501,7 +501,7 @@ class AcademicSearchService:
         warnings: list[str] = []
         for doi, result in zip(selected_dois, results, strict=True):
             if isinstance(result, Exception):
-                warnings.append(f"DOI OA zenginleştirmesi başarısız oldu ({doi}): {self._format_exception(result)}")
+                warnings.append(f"DOI OA enrichment failed ({doi}): {self._format_exception(result)}")
                 continue
             by_doi[doi] = result
 

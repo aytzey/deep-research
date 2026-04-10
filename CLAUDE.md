@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file is the Claude-specific operating guide for `deep-research-mcp`.
+This file is the Claude-specific operating guide for `paper-pilot`.
 
 ## Best Fit
 
@@ -17,13 +17,13 @@ Use the config in [examples/claude-desktop.mcp.json](examples/claude-desktop.mcp
 ```json
 {
   "mcpServers": {
-    "deep-research": {
+    "paper-pilot": {
       "command": "uv",
       "args": [
         "--directory",
-        "/absolute/path/to/deep-research",
+        "/absolute/path/to/paper-pilot",
         "run",
-        "deep-research-mcp"
+        "paper-pilot"
       ],
       "env": {
         "OPENALEX_EMAIL": "you@example.com",
