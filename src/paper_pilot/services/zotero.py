@@ -42,8 +42,14 @@ class ZoteroService:
             status["bridge_reachable"] = bridge["reachable"]
             if bridge.get("version"):
                 status["bridge_version"] = bridge["version"]
-            status["write_capability"] = "full" if bridge["reachable"] else "metadata-only"
+            status["write_capability"] = (
+                "full"
+                if api_check["reachable"] and bridge["reachable"]
+                else "metadata-only"
+            )
             if not bridge["reachable"]:
+                if bridge.get("error"):
+                    status["bridge_error"] = bridge["error"]
                 status["write_note"] = (
                     "Full local sync requires a Zotero bridge plugin that exposes /execute. "
                     "zoty-bridge is compatible."
@@ -157,8 +163,24 @@ class ZoteroService:
                     "Ensure Zotero is running and the bridge plugin (e.g. zoty-bridge) is installed and active."
                 ),
             }
-        except Exception:
-            return {"reachable": False}
+        except httpx.TimeoutException:
+            return {
+                "reachable": False,
+                "error": "timeout",
+                "remediation": (
+                    f"Connection to bridge at {self.settings.zotero_bridge_url} timed out. "
+                    "The bridge plugin may be unresponsive."
+                ),
+            }
+        except Exception as exc:
+            return {
+                "reachable": False,
+                "error": "unknown",
+                "detail": str(exc),
+                "remediation": (
+                    f"Unexpected error contacting bridge at {self.settings.zotero_bridge_url}."
+                ),
+            }
 
     def _require_local_write_support(self) -> None:
         if self.settings.zotero_mode != "local":

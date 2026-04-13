@@ -89,6 +89,36 @@ class TestBridgeStatus:
         assert "bridge plugin" in result["remediation"]
 
 
+class TestBridgeStatusExtended:
+    def test_timeout_returns_remediation(self, tmp_path: Path) -> None:
+        service = ZoteroService(_settings(tmp_path, zotero_local=True))
+
+        with patch.object(
+            httpx.Client,
+            "get",
+            side_effect=httpx.TimeoutException("timed out"),
+        ):
+            result = service._bridge_status()
+
+        assert result["reachable"] is False
+        assert result["error"] == "timeout"
+        assert "remediation" in result
+
+    def test_unknown_error_returns_remediation(self, tmp_path: Path) -> None:
+        service = ZoteroService(_settings(tmp_path, zotero_local=True))
+
+        with patch.object(
+            httpx.Client,
+            "get",
+            side_effect=OSError("something broke"),
+        ):
+            result = service._bridge_status()
+
+        assert result["reachable"] is False
+        assert result["error"] == "unknown"
+        assert "remediation" in result
+
+
 class TestStatusIntegration:
     def test_status_includes_remediation_on_failure(self, tmp_path: Path) -> None:
         service = ZoteroService(_settings(tmp_path, zotero_local=True))
@@ -103,6 +133,21 @@ class TestStatusIntegration:
         assert status["local_api_reachable"] is False
         assert "local_api_remediation" in status
         assert status["local_api_error"] == "connection_refused"
+        assert status["bridge_error"] == "connection_refused"
+        assert "bridge_remediation" in status
+
+    def test_write_capability_requires_both_api_and_bridge(self, tmp_path: Path) -> None:
+        """write_capability should be metadata-only when local API is down, even if bridge is up."""
+        service = ZoteroService(_settings(tmp_path, zotero_local=True))
+
+        with patch.object(
+            httpx.Client,
+            "get",
+            side_effect=httpx.ConnectError("Connection refused"),
+        ):
+            status = service.status()
+
+        assert status["write_capability"] == "metadata-only"
 
     def test_status_omits_remediation_when_healthy(self, tmp_path: Path) -> None:
         service = ZoteroService(_settings(tmp_path, zotero_local=False))
