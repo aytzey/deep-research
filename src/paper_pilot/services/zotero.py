@@ -42,9 +42,10 @@ class ZoteroService:
             status["bridge_reachable"] = bridge["reachable"]
             if bridge.get("version"):
                 status["bridge_version"] = bridge["version"]
+            local_writes_supported = self.settings.zotero_library_type == "user"
             status["write_capability"] = (
                 "full"
-                if api_check["reachable"] and bridge["reachable"]
+                if local_writes_supported and api_check["reachable"] and bridge["reachable"]
                 else "metadata-only"
             )
             if not bridge["reachable"]:
@@ -89,11 +90,12 @@ class ZoteroService:
     def _local_api_check(self) -> dict[str, Any]:
         if self.settings.zotero_mode != "local":
             return {"reachable": False, "error": "not_local_mode"}
+        library_scope = "users" if self.settings.zotero_library_type == "user" else "groups"
         library_id = self.settings.effective_zotero_library_id or "0"
         try:
             with httpx.Client(timeout=3.0) as client:
                 response = client.get(
-                    f"http://127.0.0.1:23119/api/users/{library_id}/collections",
+                    f"http://127.0.0.1:23119/api/{library_scope}/{library_id}/collections",
                     params={"limit": 1},
                 )
                 if response.is_success:
