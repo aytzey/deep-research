@@ -91,7 +91,17 @@ class ZoteroService:
         if self.settings.zotero_mode != "local":
             return {"reachable": False, "error": "not_local_mode"}
         library_scope = "users" if self.settings.zotero_library_type == "user" else "groups"
-        library_id = self.settings.effective_zotero_library_id or "0"
+        library_id = self.settings.effective_zotero_library_id
+        if self.settings.zotero_library_type == "group" and not library_id:
+            return {
+                "reachable": False,
+                "error": "not_configured",
+                "remediation": (
+                    "Local group libraries require ZOTERO_LIBRARY_ID. "
+                    "Set it to the target group library ID and retry."
+                ),
+            }
+        library_id = library_id or "0"
         try:
             with httpx.Client(timeout=3.0) as client:
                 response = client.get(
