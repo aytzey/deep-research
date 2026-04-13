@@ -150,10 +150,21 @@ async def _run_research_pipeline(
     }
 
 
+def _collect_remediation(zotero_status: dict) -> list[str]:
+    """Gather actionable remediation hints from the Zotero health status."""
+    hints: list[str] = []
+    if zotero_status.get("local_api_remediation"):
+        hints.append(zotero_status["local_api_remediation"])
+    if zotero_status.get("bridge_remediation"):
+        hints.append(zotero_status["bridge_remediation"])
+    return hints
+
+
 @mcp.tool()
 def healthcheck() -> dict:
     """Return current configuration summary and enabled integrations."""
     settings = get_settings()
+    zotero_status = get_zotero_service().status()
     return {
         "status": "ok",
         "data_dir": str(settings.data_dir),
@@ -163,7 +174,7 @@ def healthcheck() -> dict:
         "openalex_email_configured": bool(settings.openalex_email),
         "unpaywall_email_configured": bool(settings.unpaywall_email),
         "semantic_scholar_api_key_configured": bool(settings.semantic_scholar_api_key),
-        "zotero": get_zotero_service().status(),
+        "zotero": zotero_status,
         "proxy_configured": settings.proxy_configured,
         "ssl_cert_file_configured": bool(settings.ssl_cert_file),
         "libgen_mirrors": list(settings.libgen_mirrors),
@@ -174,6 +185,7 @@ def healthcheck() -> dict:
             "LibGen and Sci-Hub remain best-effort only. Local Zotero mode uses localhost:23119 "
             "and optionally a zoty-bridge compatible /execute plugin for full writes."
         ),
+        "remediation": _collect_remediation(zotero_status),
     }
 
 
