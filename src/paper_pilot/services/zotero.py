@@ -187,6 +187,11 @@ class ZoteroService:
             return
         if self.settings.zotero_library_type != "user":
             raise RuntimeError("Local bridge writes are currently supported only for `user` libraries.")
+        api_check = self._local_api_check()
+        if not api_check["reachable"]:
+            raise RuntimeError(
+                api_check.get("remediation", "Local Zotero API is not reachable.")
+            )
         if not self.settings.zotero_bridge_url:
             raise RuntimeError(
                 "Local Zotero writes require `ZOTERO_BRIDGE_URL`. Enable the `/execute` endpoint "

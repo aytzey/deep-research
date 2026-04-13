@@ -1,5 +1,5 @@
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
@@ -55,6 +55,20 @@ class TestLocalApiCheck:
 
         assert result["reachable"] is False
         assert result["error"] == "timeout"
+        assert "remediation" in result
+
+    def test_api_error_returns_status_code_and_remediation(self, tmp_path: Path) -> None:
+        service = ZoteroService(_settings(tmp_path, zotero_local=True))
+        mock_response = MagicMock()
+        mock_response.is_success = False
+        mock_response.status_code = 403
+
+        with patch.object(httpx.Client, "get", return_value=mock_response):
+            result = service._local_api_check()
+
+        assert result["reachable"] is False
+        assert result["error"] == "api_error"
+        assert result["status_code"] == 403
         assert "remediation" in result
 
     def test_not_local_mode_skips_check(self, tmp_path: Path) -> None:
@@ -140,13 +154,22 @@ class TestStatusIntegration:
         """write_capability should be metadata-only when local API is down, even if bridge is up."""
         service = ZoteroService(_settings(tmp_path, zotero_local=True))
 
-        with patch.object(
-            httpx.Client,
-            "get",
-            side_effect=httpx.ConnectError("Connection refused"),
-        ):
+        def _selective_get(url: str, **kwargs: object) -> MagicMock:
+            if "23119" in url:
+                raise httpx.ConnectError("Connection refused")
+            # Bridge responds successfully
+            mock_resp = MagicMock()
+            mock_resp.is_success = True
+            mock_resp.status_code = 200
+            mock_resp.raise_for_status = lambda: None
+            mock_resp.json.return_value = {"version": "1.0.0"}
+            return mock_resp
+
+        with patch.object(httpx.Client, "get", side_effect=_selective_get):
             status = service.status()
 
+        assert status["local_api_reachable"] is False
+        assert status["bridge_reachable"] is True
         assert status["write_capability"] == "metadata-only"
 
     def test_status_omits_remediation_when_healthy(self, tmp_path: Path) -> None:
