@@ -31,17 +31,32 @@ class ZoteroService:
         if self.settings.zotero_mode == "local":
             status["connector_url"] = self.settings.zotero_connector_url
             status["bridge_url"] = self.settings.zotero_bridge_url
-            status["local_api_reachable"] = self._local_api_reachable()
+
+            api_check = self._local_api_check()
+            status["local_api_reachable"] = api_check["reachable"]
+            if not api_check["reachable"] and "remediation" in api_check:
+                status["local_api_error"] = api_check.get("error")
+                status["local_api_remediation"] = api_check["remediation"]
+
             bridge = self._bridge_status()
             status["bridge_reachable"] = bridge["reachable"]
             if bridge.get("version"):
                 status["bridge_version"] = bridge["version"]
-            status["write_capability"] = "full" if bridge["reachable"] else "metadata-only"
+            local_writes_supported = self.settings.zotero_library_type == "user"
+            status["write_capability"] = (
+                "full"
+                if local_writes_supported and api_check["reachable"] and bridge["reachable"]
+                else "metadata-only"
+            )
             if not bridge["reachable"]:
+                if bridge.get("error"):
+                    status["bridge_error"] = bridge["error"]
                 status["write_note"] = (
                     "Full local sync requires a Zotero bridge plugin that exposes /execute. "
                     "zoty-bridge is compatible."
                 )
+                if "remediation" in bridge:
+                    status["bridge_remediation"] = bridge["remediation"]
         return status
 
     def _client(self) -> pyzotero.Zotero:
@@ -70,19 +85,78 @@ class ZoteroService:
         )
 
     def _local_api_reachable(self) -> bool:
+        return self._local_api_check()["reachable"]
+
+    def _local_api_check(self) -> dict[str, Any]:
         if self.settings.zotero_mode != "local":
-            return False
-        library_id = self.settings.effective_zotero_library_id or "0"
+            return {"reachable": False, "error": "not_local_mode"}
+        library_scope = "users" if self.settings.zotero_library_type == "user" else "groups"
+        library_id = self.settings.effective_zotero_library_id
+        if self.settings.zotero_library_type == "group" and not library_id:
+            return {
+                "reachable": False,
+                "error": "not_configured",
+                "remediation": (
+                    "Local group libraries require ZOTERO_LIBRARY_ID. "
+                    "Set it to the target group library ID and retry."
+                ),
+            }
+        library_id = library_id or "0"
         try:
             with httpx.Client(timeout=3.0) as client:
-                response = client.get(f"http://127.0.0.1:23119/api/users/{library_id}/collections", params={"limit": 1})
-                return response.is_success
-        except Exception:
-            return False
+                response = client.get(
+                    f"http://127.0.0.1:23119/api/{library_scope}/{library_id}/collections",
+                    params={"limit": 1},
+                )
+                if response.is_success:
+                    return {"reachable": True}
+                return {
+                    "reachable": False,
+                    "error": "api_error",
+                    "status_code": response.status_code,
+                    "remediation": (
+                        "Zotero local API returned an error. "
+                        "Ensure extensions.zotero.httpServer.localAPI.enabled is set to true "
+                        "in Zotero advanced preferences."
+                    ),
+                }
+        except httpx.ConnectError:
+            return {
+                "reachable": False,
+                "error": "connection_refused",
+                "remediation": (
+                    "Cannot connect to Zotero on port 23119. "
+                    "Make sure Zotero is running on this machine."
+                ),
+            }
+        except httpx.TimeoutException:
+            return {
+                "reachable": False,
+                "error": "timeout",
+                "remediation": (
+                    "Connection to Zotero timed out. "
+                    "Zotero may be busy or the local API may be disabled."
+                ),
+            }
+        except Exception as exc:
+            return {
+                "reachable": False,
+                "error": "unknown",
+                "detail": str(exc),
+                "remediation": "An unexpected error occurred while contacting Zotero.",
+            }
 
     def _bridge_status(self) -> dict[str, Any]:
         if not self.settings.zotero_bridge_url:
-            return {"reachable": False}
+            return {
+                "reachable": False,
+                "error": "not_configured",
+                "remediation": (
+                    "ZOTERO_BRIDGE_URL is not set. "
+                    "Install a bridge plugin like zoty-bridge and set "
+                    "ZOTERO_BRIDGE_URL=http://127.0.0.1:24119 to enable full write support."
+                ),
+            }
         try:
             with httpx.Client(timeout=3.0) as client:
                 response = client.get(urljoin(self.settings.zotero_bridge_url.rstrip("/") + "/", "status"))
@@ -92,14 +166,44 @@ class ZoteroService:
                 "reachable": True,
                 "version": payload.get("version"),
             }
-        except Exception:
-            return {"reachable": False}
+        except httpx.ConnectError:
+            return {
+                "reachable": False,
+                "error": "connection_refused",
+                "remediation": (
+                    f"Cannot reach bridge at {self.settings.zotero_bridge_url}. "
+                    "Ensure Zotero is running and the bridge plugin (e.g. zoty-bridge) is installed and active."
+                ),
+            }
+        except httpx.TimeoutException:
+            return {
+                "reachable": False,
+                "error": "timeout",
+                "remediation": (
+                    f"Connection to bridge at {self.settings.zotero_bridge_url} timed out. "
+                    "The bridge plugin may be unresponsive."
+                ),
+            }
+        except Exception as exc:
+            return {
+                "reachable": False,
+                "error": "unknown",
+                "detail": str(exc),
+                "remediation": (
+                    f"Unexpected error contacting bridge at {self.settings.zotero_bridge_url}."
+                ),
+            }
 
     def _require_local_write_support(self) -> None:
         if self.settings.zotero_mode != "local":
             return
         if self.settings.zotero_library_type != "user":
             raise RuntimeError("Local bridge writes are currently supported only for `user` libraries.")
+        api_check = self._local_api_check()
+        if not api_check["reachable"]:
+            raise RuntimeError(
+                api_check.get("remediation", "Local Zotero API is not reachable.")
+            )
         if not self.settings.zotero_bridge_url:
             raise RuntimeError(
                 "Local Zotero writes require `ZOTERO_BRIDGE_URL`. Enable the `/execute` endpoint "

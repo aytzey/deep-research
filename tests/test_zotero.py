@@ -49,6 +49,7 @@ def test_local_client_uses_pyzotero_local_flag(tmp_path: Path) -> None:
 def test_local_collection_creation_requires_bridge(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     service = ZoteroService(_settings(tmp_path, zotero_local=True, zotero_bridge_url=None))
     monkeypatch.setattr(service, "_list_collections_sync", lambda query=None: [])
+    monkeypatch.setattr(service, "_local_api_check", lambda: {"reachable": True})
 
     with pytest.raises(RuntimeError, match="ZOTERO_BRIDGE_URL"):
         service._resolve_collection_sync(None, None, "Research - Test")
