@@ -270,6 +270,7 @@ def test_unconfigured_unpaywall_still_uses_openalex(tmp_path, monkeypatch, initi
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: original_client(transport=httpx.MockTransport(handler), **kwargs))
     monkeypatch.setattr(asyncio, "sleep", no_delay)
     settings = _settings(tmp_path, unpaywall_email=None, openalex_email=None)
+    settings.cache_dir.mkdir()
     url = f"https://93.184.216.34{initial_path}" if initial_path else None
     document = asyncio.run(OpenAccessService(settings).inspect_remote_pdf(url, doi="10.1234/test"))
     assert document.path.read_bytes() == data and "api.openalex.org" in requested
