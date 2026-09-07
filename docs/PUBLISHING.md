@@ -37,11 +37,12 @@ The repository includes a manual `publish-pypi.yml` workflow designed for PyPI T
 
 Recommended setup:
 
-1. Create the `paper-pilot` project on PyPI (the name is currently unclaimed)
+1. Configure the `paper-pilot` project on PyPI; verify name availability and account ownership first
 2. In PyPI, add a Trusted Publisher for this GitHub repository and the `publish-pypi.yml` workflow (environment `pypi`)
 3. Run the `Publish to PyPI` workflow from GitHub Actions
 
-See [launch/PYPI_PUBLISH.md](launch/PYPI_PUBLISH.md) for the full step-by-step.
+Until publishing is configured, use the working [GitHub installation](../README.md#quick-start).
+The PyPI JSON endpoint returned 404 on 7 September 2026; do not advertise a PyPI install as available before verifying publication.
 
 The workflow can target:
 

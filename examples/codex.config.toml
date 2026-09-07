@@ -1,11 +1,3 @@
 [mcp_servers.paper_pilot]
-command = "uv"
-args = ["--directory", "/absolute/path/to/paper-pilot", "run", "paper-pilot"]
-
-[mcp_servers.paper_pilot.env]
-OPENALEX_EMAIL = "you@example.com"
-UNPAYWALL_EMAIL = "you@example.com"
-ZOTERO_LOCAL = "true"
-ZOTERO_LIBRARY_TYPE = "user"
-ZOTERO_CONNECTOR_URL = "http://127.0.0.1:23119/connector/saveItems"
-ZOTERO_BRIDGE_URL = "http://127.0.0.1:24119"
+command = "uvx"
+args = ["--from", "git+https://github.com/aytzey/paper-pilot", "paper-pilot"]

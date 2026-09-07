@@ -15,15 +15,18 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
+The GitHub installation also needs [Git](https://git-scm.com/downloads).
+
 PyMuPDF (the PDF engine) ships prebuilt wheels for Windows, macOS (Intel + Apple Silicon), and Linux,
 so no C toolchain is needed.
 
 ## Two ways to launch
 
-- **From PyPI (once published):** `command: "uvx"`, `args: ["paper-pilot"]`.
+- **From GitHub:** `command: "uvx"`, `args: ["--from", "git+https://github.com/aytzey/paper-pilot", "paper-pilot"]`. No manual clone or PyPI release is needed.
 - **From a local checkout (works today):** `command: "uv"`, `args: ["--directory", "<abs path>", "run", "paper-pilot"]`.
 
-Set `OPENALEX_EMAIL` and `UNPAYWALL_EMAIL` (free, no signup) so open-access PDF resolution works.
+Email configuration is optional. Unpaywall uses `UNPAYWALL_EMAIL`, then `OPENALEX_EMAIL`,
+then `nomail@mail.com` when both are missing or blank.
 
 ## Config file locations
 
@@ -45,8 +48,7 @@ macOS:
   "mcpServers": {
     "paper-pilot": {
       "command": "uvx",
-      "args": ["paper-pilot"],
-      "env": { "OPENALEX_EMAIL": "you@example.com", "UNPAYWALL_EMAIL": "you@example.com", "ZOTERO_LOCAL": "true" }
+      "args": ["--from", "git+https://github.com/aytzey/paper-pilot", "paper-pilot"]
     }
   }
 }
@@ -59,8 +61,7 @@ Windows (see the ENOENT note below):
   "mcpServers": {
     "paper-pilot": {
       "command": "cmd",
-      "args": ["/c", "uvx", "paper-pilot"],
-      "env": { "OPENALEX_EMAIL": "you@example.com", "UNPAYWALL_EMAIL": "you@example.com", "ZOTERO_LOCAL": "true" }
+      "args": ["/c", "uvx", "--from", "git+https://github.com/aytzey/paper-pilot", "paper-pilot"]
     }
   }
 }
@@ -77,24 +78,21 @@ Put this at `.cursor/mcp.json` (this repo) or `~/.cursor/mcp.json` (global), the
   "mcpServers": {
     "paper-pilot": {
       "command": "uvx",
-      "args": ["paper-pilot"],
-      "env": { "OPENALEX_EMAIL": "you@example.com", "UNPAYWALL_EMAIL": "you@example.com", "ZOTERO_LOCAL": "true" }
+      "args": ["--from", "git+https://github.com/aytzey/paper-pilot", "paper-pilot"]
     }
   }
 }
 ```
 
-On Windows use `"command": "cmd", "args": ["/c", "uvx", "paper-pilot"]`.
+On Windows use `"command": "cmd", "args": ["/c", "uvx", "--from", "git+https://github.com/aytzey/paper-pilot", "paper-pilot"]`.
 
 ## Claude Code
 
 ```bash
-claude mcp add --scope user \
-  --env OPENALEX_EMAIL=you@example.com --env UNPAYWALL_EMAIL=you@example.com --env ZOTERO_LOCAL=true \
-  paper-pilot -- uvx paper-pilot
+claude mcp add --scope user paper-pilot -- uvx --from git+https://github.com/aytzey/paper-pilot paper-pilot
 ```
 
-Flags come before the name; `--` separates the name from the command. Verify with `claude mcp list` or `/mcp`. Claude Code reads local PDFs from `pdf_path` natively, so it uses every Paper Pilot feature.
+Flags come before the name; `--` separates the name from the command. Verify with `claude mcp list` or `/mcp`. Text is available through MCP even when the client cannot open a local PDF.
 
 ## Codex CLI
 
@@ -103,46 +101,87 @@ Flags come before the name; `--` separates the name from the command. Verify wit
 ```toml
 [mcp_servers.paper_pilot]
 command = "uvx"
-args = ["paper-pilot"]
-
-[mcp_servers.paper_pilot.env]
-OPENALEX_EMAIL = "you@example.com"
-UNPAYWALL_EMAIL = "you@example.com"
-ZOTERO_LOCAL = "true"
+args = ["--from", "git+https://github.com/aytzey/paper-pilot", "paper-pilot"]
 ```
 
-Or add it from the CLI: `codex mcp add paper_pilot --env OPENALEX_EMAIL=you@example.com -- uvx paper-pilot`.
+Or add it from the CLI: `codex mcp add paper_pilot -- uvx --from git+https://github.com/aytzey/paper-pilot paper-pilot`.
 
 ## Windows: "spawn uv ENOENT"
 
 Claude Desktop and Cursor spawn the command without a shell, so a bare `uv`/`uvx` on Windows may not resolve. Two fixes:
 
-1. Wrap with cmd: `"command": "cmd", "args": ["/c", "uvx", "paper-pilot"]`.
-2. Use the full path: find it with `where uv` (typically `C:\Users\<you>\.local\bin\uv.exe`) and set that as `command`.
+1. Wrap with cmd: `"command": "cmd", "args": ["/c", "uvx", "--from", "git+https://github.com/aytzey/paper-pilot", "paper-pilot"]`.
+2. Use the full path: find it with `where.exe uvx` (typically `C:\Users\<you>\.local\bin\uvx.exe`) and set that as `command`.
 
 If a log shows an unexpanded `%APPDATA%`, add `"env": {"APPDATA": "C:\\Users\\<you>\\AppData\\Roaming\\"}`.
 
-## What each client can do with the PDFs
+## PDF delivery and client limits
 
-Paper Pilot defaults to **file paths, not base64**, so it is light and works everywhere. How much of a PDF a client can show the model varies:
+| Delivery | Requirement |
+|---|---|
+| `read_pdf_text` / `get_pdf_page_text` | An MCP client that can read tool text responses |
+| `render_pdf_pages` | A client/model that accepts image content from MCP tools |
+| `read_pdf_document` local path | The client can access the server's filesystem |
+| PDF resource link / optional base64 | The client supports fetching or consuming PDF resources |
 
-| Capability | Claude Code | Codex | Cursor | Claude Desktop |
-| --- | --- | --- | --- | --- |
-| Text chunks + report (JSON) | ✅ | ✅ | ✅ | ✅ |
-| `get_pdf_page_text` (exact page text over the wire) | ✅ | ✅ | ✅ | ✅ |
-| Open the PDF from `pdf_path` directly | ✅ (native Read) | ✅ (shell) | ⚠️ (if file access) | ❌ (no file tool) |
-| `render_pdf_pages` images the model sees | ✅ | ✅ | ✅ | ✅ (≤ ~1 MB per image) |
-| `read_pdf_document(embed_base64=True)` PDF bytes | ✅ via path | ✅ via path | ⚠️ | ❌ (embedded resources unreliable) |
+The recorded checks verify MCP transport. They do not certify every client version or GUI.
+If a client cannot consume PDF resources, use sequential text and supported page images.
 
-Takeaways: text and `get_pdf_page_text` work on every client. For figures, `render_pdf_pages` returns images that Claude Desktop, Cursor, Claude Code, and Codex all show the model (keep `scale` modest on Claude Desktop to stay under its ~1 MB content cap). Inlined PDF bytes are unreliable on Claude Desktop, which is why the default is paths plus `get_pdf_page_text`.
+## Optional settings
+
+Basic research works without these settings. Add them only for a feature you use:
+
+- `UNPAYWALL_EMAIL` or `OPENALEX_EMAIL`: your contact email; otherwise Unpaywall uses `nomail@mail.com`.
+- `PAPER_PILOT_DATA_DIR`: a writable directory for downloads and reports. The default is `./data/`
+  under the server's working directory. If a desktop client starts in a read-only directory,
+  set an absolute path you own, such as `C:/Users/<you>/paper-pilot-data` or `~/paper-pilot-data`.
+- `ZOTERO_LOCAL=true`: enable local Zotero. Run `healthcheck` before requesting writes;
+  full attachment/collection writes need the bridge described in [AGENTS.md](../AGENTS.md#zotero-rules).
+
+JSON clients accept an `env` object alongside `command` and `args`. Codex TOML uses
+`[mcp_servers.paper_pilot.env]`. Full configuration is in the [reading guide](READING.md#configuration).
+
+## Update or use a local checkout
+
+For an existing GitHub installation, refresh the cached package and restart your MCP client:
+
+```bash
+uvx --refresh-package paper-pilot --from git+https://github.com/aytzey/paper-pilot paper-pilot --help
+```
+
+For development:
+
+```bash
+git clone https://github.com/aytzey/paper-pilot.git
+cd paper-pilot
+uv sync
+```
+
+Then use `command: "uv"` and `args: ["--directory", "<absolute checkout path>", "run", "paper-pilot"]`.
+A server waiting for stdio input is normal; it does not open a chat UI.
 
 ## Suggested workflow (any client)
 
+For practical design decisions, start with the research workflow sent in the MCP initialization
+instructions: clarify constraints, make discipline-specific `search_literature` queries with
+`sort_by="newest", open_access_only=False`, follow the needed source `next_request` arguments,
+and read selected papers completely. Compare conditions and contrary evidence before recommending
+an approach and its first validation experiment. The server cannot certify that a model followed
+these instructions. See [the shared workflow](../README.md#research-a-practical-decision).
+
+For a quick reading pack:
+
 1. `healthcheck`
-2. `research_topic` or `deep_read_topic`
-3. `render_pdf_pages` when a figure or table matters
-4. `get_pdf_page_text` for an exact detail on a known page
+2. `deep_read_topic`: read the first batch in every `deep_reads[*].full_text`
+3. `read_pdf_text` with each PDF's `next_cursor.start_page` / `start_char`, repeatedly until null
+4. `render_pdf_pages` for figures/tables; disclose pages without extractable text
 5. `write_to_zotero=true` only after Zotero health is confirmed
+
+No client needs filesystem access or PDF-resource support for `read_pdf_text`: the text is in the
+tool response. The default batch holds up to 12,000 text characters (maximum 20,000) and 20 page segments.
+An oversized page resumes at the exact character.
+Read from page 1, char 0 through every continuation before claiming complete reading, and disclose
+unresolved extraction gaps. PDFs need a readable text layer; figures/formulas still need visual inspection.
 
 ## Prompt starters
 

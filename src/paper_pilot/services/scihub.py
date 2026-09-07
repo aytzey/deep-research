@@ -11,9 +11,9 @@ import httpx
 from bs4 import BeautifulSoup
 
 try:
-    import fitz
-except ModuleNotFoundError:  # pragma: no cover
     import pymupdf as fitz
+except ModuleNotFoundError:  # pragma: no cover
+    import fitz
 
 from paper_pilot.config import Settings
 from paper_pilot.models import DownloadedDocument, PaperRecord, normalize_doi, slugify, utc_timestamp

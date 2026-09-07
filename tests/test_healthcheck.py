@@ -26,6 +26,19 @@ def _settings(tmp_path: Path, **overrides: object) -> Settings:
     return Settings(**base)
 
 
+def test_unpaywall_needs_no_email_configuration(tmp_path, monkeypatch):
+    from paper_pilot import server
+
+    settings = _settings(tmp_path, unpaywall_email=None, openalex_email=None)
+    monkeypatch.setattr(server, "get_settings", lambda: settings)
+    monkeypatch.setattr(server, "get_zotero_service", lambda: ZoteroService(settings))
+    status = server.healthcheck()
+    assert status["unpaywall_enabled"] is True
+    assert status["unpaywall_email_configured"] is False
+    assert "nomail@mail.com" in status["note"]
+    assert not any("UNPAYWALL_EMAIL" in hint for hint in status["remediation"])
+
+
 class TestLocalApiCheck:
     def test_connection_refused_returns_remediation(self, tmp_path: Path) -> None:
         service = ZoteroService(_settings(tmp_path, zotero_local=True))

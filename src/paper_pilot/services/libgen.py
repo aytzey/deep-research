@@ -9,9 +9,9 @@ import requests
 from bs4 import BeautifulSoup
 
 try:
-    import fitz
-except ModuleNotFoundError:  # pragma: no cover - compatibility fallback
     import pymupdf as fitz
+except ModuleNotFoundError:  # pragma: no cover - compatibility fallback
+    import fitz
 
 from paper_pilot.config import Settings
 from paper_pilot.models import DownloadedDocument, PaperRecord, slugify, utc_timestamp

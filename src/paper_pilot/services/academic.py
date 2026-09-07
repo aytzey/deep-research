@@ -7,15 +7,19 @@ import json
 import re
 import time
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import quote
 
 import httpx
 
 from paper_pilot.config import Settings
-from paper_pilot.models import PaperRecord, combine_papers, normalize_doi
+from paper_pilot.models import PaperRecord, combine_papers, normalize_doi, normalize_publication_date
+
+SearchSource = Literal["all", "semantic_scholar", "openalex", "arxiv", "crossref", "europe_pmc", "doaj"]
+SearchOrder = Literal["relevance", "newest"]
+SOURCES = ("semantic_scholar", "openalex", "arxiv", "crossref", "europe_pmc", "doaj")
 
 SEMANTIC_SCHOLAR_FIELDS = ",".join(
     [
@@ -23,6 +27,7 @@ SEMANTIC_SCHOLAR_FIELDS = ",".join(
         "abstract",
         "authors",
         "year",
+        "publicationDate",
         "venue",
         "url",
         "externalIds",
@@ -67,6 +72,17 @@ FALLBACK_HTTP_ERRORS = (
 class SearchBundle:
     results: list[PaperRecord]
     warnings: list[str]
+    source_status: list[dict[str, Any]] = field(default_factory=list)
+
+
+@dataclass(slots=True)
+class SearchPage:
+    results: list[PaperRecord]
+    next_cursor: str | None = None
+    total: int | None = None
+    sort_applied: str = "relevance"
+    notes: list[str] = field(default_factory=list)
+    limited: bool = False
 
 
 class AcademicSearchService:
@@ -91,7 +107,40 @@ class AcademicSearchService:
         from_year: int | None = None,
         to_year: int | None = None,
         open_access_only: bool = True,
+        sort_by: SearchOrder = "relevance",
+        source: SearchSource = "all",
+        cursor: str | None = None,
     ) -> SearchBundle:
+        if not topic.strip():
+            raise ValueError("topic must not be blank.")
+        if not 1 <= limit_per_source <= 100:
+            raise ValueError("limit_per_source must be between 1 and 100.")
+        if any(year is not None and not 1 <= year <= 9999 for year in (from_year, to_year)):
+            raise ValueError("Years must be between 1 and 9999.")
+        if from_year is not None and to_year is not None and from_year > to_year:
+            raise ValueError("from_year must not exceed to_year.")
+        if sort_by not in {"relevance", "newest"} or source not in {"all", *SOURCES}:
+            raise ValueError("Unknown search source or sort order.")
+        if cursor is not None and (source == "all" or not cursor or len(cursor) > 32768):
+            raise ValueError("A nonempty cursor requires one source and must be at most 32768 characters.")
+        if cursor is not None:
+            if source == "semantic_scholar" and sort_by == "newest":
+                state = json.loads(cursor)
+                if (not isinstance(state, dict)
+                        or type(state.get("offset", 0)) is not int
+                        or not 0 <= state.get("offset", 0) < 1000
+                        or (state.get("token") is not None and not isinstance(state["token"], str))):
+                    raise ValueError("Invalid Semantic Scholar bulk cursor.")
+            else:
+                bounds = {"arxiv": (0, 30000), "doaj": (1, 1000001),
+                          "semantic_scholar": (0, 1000)}.get(source)
+                if source == "crossref" and sort_by == "newest":
+                    bounds = (0, 10000)
+                if bounds and (not cursor.isdecimal() or not bounds[0] <= int(cursor) < bounds[1]):
+                    raise ValueError(f"Invalid {source} page cursor; narrow the query if its result limit was reached.")
+        selected = SOURCES if source == "all" else (source,)
+        request = dict(topic=topic, limit_per_source=limit_per_source, from_year=from_year,
+                       to_year=to_year, open_access_only=open_access_only, sort_by=sort_by)
         async with httpx.AsyncClient(
             timeout=30.0,
             follow_redirects=True,
@@ -99,26 +148,30 @@ class AcademicSearchService:
             trust_env=True,
             verify=self.settings.ssl_verify,
         ) as client:
-            tasks = [
-                self._search_semantic_scholar(client, topic, limit_per_source, from_year, to_year, open_access_only),
-                self._search_openalex(client, topic, limit_per_source, from_year, to_year, open_access_only),
-                self._search_arxiv(client, topic, limit_per_source),
-                self._search_crossref(client, topic, limit_per_source, from_year, to_year),
-                self._search_europe_pmc(client, topic, limit_per_source, from_year, to_year, open_access_only),
-                self._search_doaj(client, topic, limit_per_source, from_year, to_year),
-            ]
+            tasks = [getattr(self, f"_search_{name}")(
+                client, topic, limit_per_source, from_year, to_year,
+                **({"open_access_only": open_access_only} if name in {"semantic_scholar", "openalex", "europe_pmc"} else {}),
+                sort_by=sort_by, cursor=cursor,
+            ) for name in selected]
             gathered = await asyncio.gather(*tasks, return_exceptions=True)
             warnings: list[str] = []
             combined: list[PaperRecord] = []
-            for source_name, result in zip(
-                ["semantic_scholar", "openalex", "arxiv", "crossref", "europe_pmc", "doaj"],
-                gathered,
-                strict=True,
-            ):
+            source_status = []
+            for source_name, result in zip(selected, gathered, strict=True):
+                current_request = {**request, "source": source_name, "cursor": cursor}
                 if isinstance(result, Exception):
                     warnings.append(f"{source_name} search failed: {self._format_exception(result)}")
+                    source_status.append({"source": source_name, "status": "error", "sort_requested": sort_by,
+                                          "error": type(result).__name__, "retry_request": current_request})
                     continue
-                combined.extend(result)
+                source_status.append({
+                    "source": source_name, "status": "limited" if result.limited else "ok",
+                    "sort_requested": sort_by, "sort_applied": result.sort_applied,
+                    "returned_count": len(result.results), "total_reported": result.total,
+                    "next_request": {**current_request, "cursor": result.next_cursor} if result.next_cursor is not None else None,
+                    "notes": result.notes,
+                })
+                combined.extend(result.results)
 
             merged = combine_papers(combined)
             merged, enrichment_warnings = await self._enrich_with_unpaywall(client, merged)
@@ -134,8 +187,11 @@ class AcademicSearchService:
             merged = oa_only or merged
         # Re-rank by topic relevance first, then citations/recency/OA, so precise matches
         # outrank merely famous-but-tangential papers.
-        merged = sorted(merged, key=lambda record: record.quality_score(topic), reverse=True)
-        return SearchBundle(results=merged, warnings=warnings)
+        if sort_by == "newest":
+            merged.sort(key=lambda record: (record.publication_date or (f"{record.year:04d}" if record.year else ""), record.dedupe_key()), reverse=True)
+        else:
+            merged.sort(key=lambda record: record.quality_score(topic), reverse=True)
+        return SearchBundle(results=merged, warnings=warnings, source_status=source_status)
 
     async def recommend_similar(
         self,
@@ -152,7 +208,7 @@ class AcademicSearchService:
                 trust_env=True,
                 verify=self.settings.ssl_verify,
             ) as client:
-                search_results = await self._search_semantic_scholar(client, seed_doi or seed_title, 1, None, None, False)
+                search_results = (await self._search_semantic_scholar(client, seed_doi or seed_title, 1, None, None, False)).results
                 if not search_results:
                     raise RuntimeError("seed record not found")
 
@@ -168,14 +224,14 @@ class AcademicSearchService:
                 )
                 response.raise_for_status()
                 data = response.json()
-                records = [
+                records = combine_papers([
                     self._paper_from_semantic_scholar(item, related_score=1.0)
                     for item in data.get("recommendedPapers", [])
-                ]
-                records, _ = await self._enrich_with_unpaywall(client, records)
+                ])
+                records, warnings = await self._enrich_with_unpaywall(client, records)
                 if open_access_only:
                     records = [record for record in records if record.is_open_access or record.pdf_url] or records
-                return SearchBundle(results=combine_papers(records), warnings=[])
+                return SearchBundle(results=sorted(records, key=lambda record: record.rank_score(), reverse=True), warnings=warnings)
         except Exception as exc:
             fallback = await self.search_literature(seed_title, limit_per_source=max(limit // 2, 1), open_access_only=open_access_only)
             fallback.warnings.append(
@@ -191,7 +247,8 @@ class AcademicSearchService:
         from_year: int | None,
         to_year: int | None,
         open_access_only: bool,
-    ) -> list[PaperRecord]:
+        *, sort_by: SearchOrder = "relevance", cursor: str | None = None,
+    ) -> SearchPage:
         params: dict[str, Any] = {
             "query": topic,
             "limit": min(limit, 100),
@@ -205,13 +262,52 @@ class AcademicSearchService:
             params["year"] = f"{from_year}-"  # open-ended: during or after from_year
         elif to_year:
             params["year"] = f"-{to_year}"  # open-ended: during or before to_year
+        endpoint = "https://api.semanticscholar.org/graph/v1/paper/search"
+        offset = 0
+        token = None
+        if sort_by == "newest":
+            endpoint += "/bulk"
+            params.pop("limit")
+            params.pop("year", None)
+            if from_year or to_year:
+                params["publicationDateOrYear"] = f"{from_year or ''}:{to_year or ''}"
+            params["sort"] = "publicationDate:desc"
+            if cursor:
+                state = json.loads(cursor)
+                token, offset = state.get("token"), state.get("offset", 0)
+                if not isinstance(offset, int) or not 0 <= offset < 1000 or (token is not None and not isinstance(token, str)):
+                    raise ValueError("Invalid Semantic Scholar bulk cursor.")
+            if token:
+                params["token"] = token
+        else:
+            offset = int(cursor or "0")
+            if not 0 <= offset < 1000:
+                raise ValueError("Semantic Scholar relevance search is limited to 1000 results.")
+            params["offset"] = offset
+            params["limit"] = min(limit, 1000 - offset)
         data = await self._get_json(
             client,
-            "https://api.semanticscholar.org/graph/v1/paper/search",
+            endpoint,
             params,
             "semantic_scholar_search",
         )
-        return [self._paper_from_semantic_scholar(item) for item in data.get("data", [])]
+        items = data.get("data", [])
+        limited = False
+        if sort_by == "newest":
+            # The upstream bulk API returns up to 1000 records, irrespective of our display limit.
+            # Reuse the cached batch and carry its local offset so no remainder is skipped.
+            selected = items[offset:offset + limit]
+            end = offset + len(selected)
+            next_cursor = (json.dumps({"token": token, "offset": end}) if end < len(items) else
+                           json.dumps({"token": data["token"], "offset": 0}) if data.get("token") and items else None)
+        else:
+            selected = items
+            next_offset = data.get("next")
+            limited = offset + len(items) >= 1000 and (data.get("total") or 0) > 1000
+            next_cursor = str(next_offset) if next_offset is not None and next_offset < 1000 and items else None
+        return SearchPage([self._paper_from_semantic_scholar(item) for item in selected], next_cursor,
+                          data.get("total"), "publication_date" if sort_by == "newest" else "relevance",
+                          ["Relevance search exposes at most 1000 results; narrow the query/year range."] if limited else [], limited)
 
     async def _search_openalex(
         self,
@@ -221,11 +317,15 @@ class AcademicSearchService:
         from_year: int | None,
         to_year: int | None,
         open_access_only: bool,
-    ) -> list[PaperRecord]:
+        *, sort_by: SearchOrder = "relevance", cursor: str | None = None,
+    ) -> SearchPage:
         params: dict[str, Any] = {
             "search": topic,
             "per-page": limit,
+            "cursor": cursor or "*",
         }
+        if sort_by == "newest":
+            params["sort"] = "publication_date:desc"
         if self.settings.openalex_email:
             params["mailto"] = self.settings.openalex_email
         filters: list[str] = []
@@ -240,23 +340,50 @@ class AcademicSearchService:
         if filters:
             params["filter"] = ",".join(filters)
         data = await self._get_json(client, "https://api.openalex.org/works", params, "openalex_search")
-        return [self._paper_from_openalex(item) for item in data.get("results", [])]
+        items = data.get("results", [])
+        return SearchPage([self._paper_from_openalex(item) for item in items],
+                          (data.get("meta") or {}).get("next_cursor") if items else None,
+                          (data.get("meta") or {}).get("count"),
+                          "publication_date" if sort_by == "newest" else "relevance")
 
     async def _search_arxiv(
         self,
         client: httpx.AsyncClient,
         topic: str,
         limit: int,
-    ) -> list[PaperRecord]:
+        from_year: int | None = None,
+        to_year: int | None = None,
+        *, sort_by: SearchOrder = "relevance", cursor: str | None = None,
+    ) -> SearchPage:
+        terms = re.findall(r"[\w-]+", topic)
+        if not terms:
+            return SearchPage([])
+        # Preserve exact title matches while allowing the topic's words anywhere in a paper.
+        phrase = " ".join(terms)
+        query = f'(ti:"{phrase}" OR ({" AND ".join(f"all:{term}" for term in terms)}))'
+        if from_year or to_year:
+            query += f" AND submittedDate:[{from_year or 1991}01010000 TO {to_year or 9999}12312359]"
+        offset = int(cursor or "0")
+        if not 0 <= offset < 30000:
+            raise ValueError("arXiv exposes at most 30000 results; narrow the query/year range.")
         params = {
-            "search_query": f"all:{topic}",
-            "start": 0,
+            "search_query": query,
+            "start": offset,
             "max_results": limit,
-            "sortBy": "relevance",
+            "sortBy": "submittedDate" if sort_by == "newest" else "relevance",
             "sortOrder": "descending",
         }
         text = await self._get_text(client, "https://export.arxiv.org/api/query", params, "arxiv_search")
-        return self._parse_arxiv_feed(text)
+        records = self._parse_arxiv_feed(text)
+        total_text = ET.fromstring(text).findtext("{http://a9.com/-/spec/opensearch/1.1/}totalResults")
+        total = int(total_text) if total_text else None
+        end = offset + len(records)
+        more = bool(records) and (end < total if total is not None else len(records) == limit)
+        limited = more and end >= 30000
+        return SearchPage(records, str(end) if more and not limited else None, total,
+                          "first_submission_date" if sort_by == "newest" else "relevance",
+                          ["arXiv dates describe first submission, not journal publication."] +
+                          (["30000-result limit reached; narrow the query/year range."] if limited else []), limited)
 
     async def _search_crossref(
         self,
@@ -265,12 +392,21 @@ class AcademicSearchService:
         limit: int,
         from_year: int | None,
         to_year: int | None,
-    ) -> list[PaperRecord]:
+        *, sort_by: SearchOrder = "relevance", cursor: str | None = None,
+    ) -> SearchPage:
         params: dict[str, Any] = {
             "query.bibliographic": topic,
             "rows": limit,
             "mailto": self.settings.openalex_email or None,
         }
+        offset = 0
+        if sort_by == "newest":
+            offset = int(cursor or "0")
+            if not 0 <= offset < 10000:
+                raise ValueError("Crossref date sorting exposes at most 10000 results; narrow the query/year range.")
+            params.update(sort="published", order="desc", offset=offset, rows=min(limit, 10000 - offset))
+        else:
+            params["cursor"] = cursor or "*"
         filters: list[str] = []
         if from_year:
             filters.append(f"from-pub-date:{from_year}-01-01")
@@ -284,7 +420,22 @@ class AcademicSearchService:
             {k: v for k, v in params.items() if v is not None},
             "crossref_search",
         )
-        return [self._paper_from_crossref(item) for item in data.get("message", {}).get("items", [])]
+        message = data.get("message") or {}
+        items = message.get("items", [])
+        total = message.get("total-results")
+        limited = False
+        if sort_by == "newest":
+            end = offset + len(items)
+            more = bool(items) and (end < total if total is not None else len(items) == params["rows"])
+            limited = more and end >= 10000
+            next_cursor = str(end) if more and not limited else None
+        else:
+            next_cursor = message.get("next-cursor") if len(items) == limit else None
+        notes = ["Crossref PDF links may require publisher access; metadata is not full-text evidence."]
+        if sort_by == "newest":
+            notes.append("Crossref does not support publication-date sorting with native cursors; offset paging stops at 10000. Narrow the query/year range to continue.")
+        return SearchPage([self._paper_from_crossref(item) for item in items],
+                          next_cursor, total, "publication_date" if sort_by == "newest" else "relevance", notes, limited)
 
     async def _search_europe_pmc(
         self,
@@ -294,7 +445,8 @@ class AcademicSearchService:
         from_year: int | None,
         to_year: int | None,
         open_access_only: bool,
-    ) -> list[PaperRecord]:
+        *, sort_by: SearchOrder = "relevance", cursor: str | None = None,
+    ) -> SearchPage:
         query = topic
         if open_access_only:
             query = f"{query} OPEN_ACCESS:y"
@@ -304,12 +456,15 @@ class AcademicSearchService:
             query = f"{query} FIRST_PDATE:[{from_year}-01-01 TO 2100-12-31]"
         elif to_year:
             query = f"{query} FIRST_PDATE:[1900-01-01 TO {to_year}-12-31]"
+        if sort_by == "newest":
+            query = f"({query}) sort_date:y"
 
         params = {
             "query": query,
             "format": "json",
             "pageSize": limit,
             "resultType": "core",
+            "cursorMark": cursor or "*",
         }
         data = await self._get_json(
             client,
@@ -317,7 +472,11 @@ class AcademicSearchService:
             params,
             "europepmc_search",
         )
-        return [self._paper_from_europe_pmc(item) for item in data.get("resultList", {}).get("result", [])]
+        items = data.get("resultList", {}).get("result", [])
+        next_cursor = data.get("nextCursorMark")
+        return SearchPage([self._paper_from_europe_pmc(item) for item in items],
+                          next_cursor if items and next_cursor != cursor else None,
+                          data.get("hitCount"), "first_publication_date" if sort_by == "newest" else "relevance")
 
     async def _search_doaj(
         self,
@@ -326,21 +485,35 @@ class AcademicSearchService:
         limit: int,
         from_year: int | None,
         to_year: int | None,
-    ) -> list[PaperRecord]:
+        *, sort_by: SearchOrder = "relevance", cursor: str | None = None,
+    ) -> SearchPage:
         # DOAJ indexes only peer-reviewed open-access journal articles.
+        page = int(cursor or "1")
+        if not 1 <= page <= 1000000:
+            raise ValueError("Invalid DOAJ page cursor.")
+        query = topic
+        if from_year or to_year:
+            query = f"({topic}) AND bibjson.year:[{from_year or '*'} TO {to_year or '*'}]"
+        params = {"pageSize": limit, "page": page}
+        if sort_by == "newest":
+            params["sort"] = "bibjson.year.exact:desc"
         data = await self._get_json(
             client,
-            f"https://doaj.org/api/search/articles/{quote(topic, safe='')}",
-            {"pageSize": min(max(limit, 1), 100), "page": 1},
+            f"https://doaj.org/api/search/articles/{quote(query, safe='')}",
+            params,
             "doaj_search",
         )
         records = [self._paper_from_doaj(item) for item in data.get("results", [])]
-        # DOAJ query syntax is fragile; filter by year client-side instead.
+        # Keep a defensive local filter; continuation is based on raw upstream counts.
+        total = data.get("total")
+        more = bool(records) and (page * limit < total if total is not None else len(records) == limit)
         if from_year or to_year:
             lo = from_year or 0
             hi = to_year or 9999
             records = [r for r in records if r.year is None or lo <= r.year <= hi]
-        return records
+        return SearchPage(records, str(page + 1) if more else None, total,
+                          "publication_year" if sort_by == "newest" else "relevance",
+                          ["DOAJ contains OA journals only; provider sorting has year precision."])
 
     def _paper_from_doaj(self, item: dict[str, Any]) -> PaperRecord:
         bibjson = item.get("bibjson") or {}
@@ -357,6 +530,7 @@ class AcademicSearchService:
         )
         journal = bibjson.get("journal") or {}
         year = int(bibjson["year"]) if str(bibjson.get("year", "")).strip().isdigit() else None
+        month = str(bibjson.get("month") or "").zfill(2)
         return PaperRecord(
             source="doaj",
             source_id=item.get("id") or doi or bibjson.get("title", "unknown"),
@@ -364,6 +538,8 @@ class AcademicSearchService:
             authors=[author.get("name", "") for author in bibjson.get("author", []) if author.get("name")],
             abstract=bibjson.get("abstract"),
             year=year,
+            publication_date=normalize_publication_date(f"{year}-{month}") or normalize_publication_date(year),
+            publication_date_source="doaj.bibjson.year/month",
             venue=journal.get("title"),
             doi=normalize_doi(doi),
             url=landing or (f"https://doi.org/{normalize_doi(doi)}" if doi else None),
@@ -384,6 +560,8 @@ class AcademicSearchService:
             authors=[author.get("name", "") for author in item.get("authors", []) if author.get("name")],
             abstract=item.get("abstract"),
             year=item.get("year"),
+            publication_date=normalize_publication_date(item.get("publicationDate")) or normalize_publication_date(item.get("year")),
+            publication_date_source="semantic_scholar.publicationDate/year",
             venue=item.get("venue"),
             doi=doi,
             url=item.get("url"),
@@ -413,6 +591,8 @@ class AcademicSearchService:
             ],
             abstract=self._decode_abstract(item.get("abstract_inverted_index")),
             year=item.get("publication_year"),
+            publication_date=normalize_publication_date(item.get("publication_date")) or normalize_publication_date(item.get("publication_year")),
+            publication_date_source="openalex.publication_date/year",
             venue=venue,
             doi=normalize_doi(item.get("doi")),
             url=url,
@@ -423,7 +603,9 @@ class AcademicSearchService:
         )
 
     def _paper_from_crossref(self, item: dict[str, Any]) -> PaperRecord:
-        issued = item.get("issued", {}).get("date-parts", [[None]])
+        date_field = "published" if (item.get("published") or {}).get("date-parts") else "issued"
+        parts = ((item.get(date_field) or {}).get("date-parts") or [[]])[0]
+        publication_date = normalize_publication_date(parts)
         links = item.get("link") or []
         pdf_url = next((link.get("URL") for link in links if link.get("content-type") == "application/pdf"), None)
         abstract = item.get("abstract")
@@ -440,7 +622,9 @@ class AcademicSearchService:
                 if author.get("given") or author.get("family")
             ],
             abstract=abstract,
-            year=issued[0][0],
+            year=int(publication_date[:4]) if publication_date else None,
+            publication_date=publication_date,
+            publication_date_source=f"crossref.{date_field}",
             venue=(item.get("container-title") or [None])[0],
             doi=normalize_doi(item.get("DOI")),
             url=item.get("URL"),
@@ -476,6 +660,8 @@ class AcademicSearchService:
             authors=authors,
             abstract=item.get("abstractText"),
             year=year,
+            publication_date=normalize_publication_date(item.get("firstPublicationDate")) or normalize_publication_date(year),
+            publication_date_source="europe_pmc.firstPublicationDate/pubYear",
             venue=(((item.get("journalInfo") or {}).get("journal") or {}).get("title")) or item.get("journalTitle"),
             doi=normalize_doi(item.get("doi")),
             url=landing_url,
@@ -512,6 +698,8 @@ class AcademicSearchService:
                     authors=[author for author in authors if author],
                     abstract=abstract,
                     year=year,
+                    publication_date=normalize_publication_date(published[:10]) or normalize_publication_date(year),
+                    publication_date_source="arxiv.first_submission",
                     venue="arXiv",
                     doi=None,
                     url=entry_id,
@@ -542,52 +730,65 @@ class AcademicSearchService:
         self,
         client: httpx.AsyncClient,
         records: list[PaperRecord],
+        *,
+        force_lookup: bool = False,
     ) -> tuple[list[PaperRecord], list[str]]:
-        if not self.settings.unpaywall_enabled:
-            return records, []
-
         candidate_dois = [
             self._doi_for_oa_lookup(record.doi)
             for record in records
-            if record.doi and (not record.pdf_url or not record.is_open_access)
+            if record.doi and (force_lookup or not record.pdf_url)
         ]
         unique_dois = [doi for doi in dict.fromkeys(doi for doi in candidate_dois if doi)]
+        for record in records:
+            if not self._doi_for_oa_lookup(record.doi):
+                record.raw = {**record.raw, "unpaywall": {"status": "not_applicable", "reason": "missing_doi"}}
+            elif record.pdf_url and not force_lookup and "unpaywall" not in record.raw:
+                record.raw = {**record.raw, "unpaywall": {"status": "deferred", "reason": "try_existing_pdf_first"}}
         if not unique_dois:
             return records, []
-
-        selected_dois = unique_dois[:20]
         lookup_semaphore = asyncio.Semaphore(4)
         results = await asyncio.gather(
-            *(self._lookup_oa_metadata(client, doi, lookup_semaphore) for doi in selected_dois),
+            *(self._lookup_oa_metadata(client, doi, lookup_semaphore) for doi in unique_dois),
             return_exceptions=True,
         )
-        by_doi: dict[str, tuple[str, dict[str, Any]]] = {}
+        by_doi = dict(zip(unique_dois, results, strict=True))
         warnings: list[str] = []
-        for doi, result in zip(selected_dois, results, strict=True):
+        for doi, result in by_doi.items():
             if isinstance(result, Exception):
                 warnings.append(f"DOI OA enrichment failed ({doi}): {self._format_exception(result)}")
-                continue
-            by_doi[doi] = result
+            elif result[2]:
+                warnings.append(f"Unpaywall lookup failed ({doi}): {result[2]}; used OpenAlex fallback.")
 
         for record in records:
             doi = self._doi_for_oa_lookup(record.doi)
-            if not doi:
+            if doi not in by_doi or (record.pdf_url and not force_lookup):
                 continue
-            enrichment = by_doi.get(doi)
-            if not enrichment:
+            enrichment = by_doi[doi]
+            if isinstance(enrichment, Exception):
+                record.raw = {**record.raw, "unpaywall": {"status": "error", "doi": doi, "error": str(enrichment)}}
                 continue
-            source, payload = enrichment
+            source, payload, unpaywall_error = enrichment
             if source == "unpaywall":
                 best = payload.get("best_oa_location") or {}
-                record.pdf_url = record.pdf_url or best.get("url_for_pdf") or best.get("url")
+                locations = payload.get("oa_locations") or []
+                pdf_urls = [location["url_for_pdf"] for location in [best, *locations] if location.get("url_for_pdf")]
+                # A landing-page URL is not a PDF. Preserve it as a bibliographic link only.
+                if pdf_urls:
+                    record.raw = {**record.raw, "original_pdf_url": record.raw.get("original_pdf_url") or record.pdf_url}
+                    record.pdf_url = pdf_urls[0]
                 record.url = record.url or best.get("url_for_landing_page") or payload.get("doi_url")
                 record.is_open_access = record.is_open_access or bool(payload.get("is_oa") or record.pdf_url)
                 record.raw = {
                     **record.raw,
                     "unpaywall": {
+                        "status": "ok",
+                        "doi": doi,
+                        "is_oa": payload.get("is_oa"),
                         "oa_status": payload.get("oa_status"),
                         "host_type": best.get("host_type"),
                         "license": best.get("license"),
+                        "best_oa_location": best,
+                        "oa_locations": locations,
                     },
                 }
                 continue
@@ -599,15 +800,19 @@ class AcademicSearchService:
             record.year = record.year or openalex_record.year
             record.venue = record.venue or openalex_record.venue
             record.url = record.url or openalex_record.url
-            record.pdf_url = record.pdf_url or openalex_record.pdf_url
+            if openalex_record.pdf_url:
+                record.raw = {**record.raw, "original_pdf_url": record.raw.get("original_pdf_url") or record.pdf_url}
+                record.pdf_url = openalex_record.pdf_url
             record.citation_count = max(record.citation_count or 0, openalex_record.citation_count or 0) or None
             record.is_open_access = record.is_open_access or openalex_record.is_open_access or bool(record.pdf_url)
             record.keywords = sorted(set(record.keywords + openalex_record.keywords))
             record.raw = {
                 **record.raw,
+                "unpaywall": {"status": "error", "doi": doi, "error": unpaywall_error},
                 "openalex_doi_lookup": {
                     "id": payload.get("id"),
                     "oa_status": ((payload.get("open_access") or {}).get("oa_status")),
+                    "pdf_url": openalex_record.pdf_url,
                 },
             }
         return records, warnings
@@ -623,22 +828,21 @@ class AcademicSearchService:
         client: httpx.AsyncClient,
         doi: str,
         semaphore: asyncio.Semaphore,
-    ) -> tuple[str, dict[str, Any]]:
+    ) -> tuple[str, dict[str, Any], str | None]:
         async with semaphore:
-            unpaywall_error: Exception | None = None
             try:
-                return "unpaywall", await self._lookup_unpaywall(client, doi)
+                return "unpaywall", await self._lookup_unpaywall(client, doi), None
             except Exception as exc:
-                unpaywall_error = exc
+                unpaywall_error = type(exc).__name__
 
             try:
-                return "openalex", await self._lookup_openalex_by_doi(client, doi)
+                return "openalex", await self._lookup_openalex_by_doi(client, doi), unpaywall_error
             except Exception as fallback_exc:
                 raise RuntimeError(
                     "unpaywall="
-                    f"{self._format_exception(unpaywall_error)}; "
+                    f"{unpaywall_error}; "
                     "openalex="
-                    f"{self._format_exception(fallback_exc)}"
+                    f"{type(fallback_exc).__name__}"
                 ) from fallback_exc
 
     async def _lookup_unpaywall(self, client: httpx.AsyncClient, doi: str) -> dict[str, Any]:
@@ -646,7 +850,7 @@ class AcademicSearchService:
             return await self._get_json(
                 client,
                 f"https://api.unpaywall.org/v2/{quote(doi, safe='')}",
-                {"email": self.settings.unpaywall_email},
+                {"email": self.settings.effective_unpaywall_email},
                 "unpaywall_lookup",
                 timeout=httpx.Timeout(10.0, connect=3.0),
             )
@@ -660,7 +864,7 @@ class AcademicSearchService:
         return await self._get_json(
             client,
             f"https://api.unpaywall.org/v2/{quote(doi, safe='')}",
-            {"email": self.settings.unpaywall_email},
+            {"email": self.settings.effective_unpaywall_email},
             "unpaywall_lookup",
             timeout=httpx.Timeout(10.0, connect=3.0),
         )
@@ -697,13 +901,13 @@ class AcademicSearchService:
         if cached and cached["expires_at"] > time.time():
             return cached["payload"]
         try:
-            response = await client.get(url, params=params, timeout=timeout)
+            response = await client.get(url, params=params, **({"timeout": timeout} if timeout is not None else {}))
             response.raise_for_status()
             payload = response.json()
             self._write_cache(cache_file, payload)
             return payload
         except Exception:
-            if cached:
+            if cached and namespace != "unpaywall_lookup" and not namespace.endswith("_search"):
                 return cached["payload"]
             raise
 
@@ -725,7 +929,7 @@ class AcademicSearchService:
             self._write_cache(cache_file, payload)
             return payload
         except Exception:
-            if cached:
+            if cached and not namespace.endswith("_search"):
                 return cached["payload"]
             raise
 

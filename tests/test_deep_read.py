@@ -136,3 +136,66 @@ def test_render_pages_exports_pngs(tmp_path: Path) -> None:
     assert len(images) == 2
     assert all(image.exists() for image in images)
     assert all(image.suffix == ".png" for image in images)
+
+
+def test_empty_pages_are_gaps_not_evidence_and_batches_are_bounded(tmp_path: Path) -> None:
+    path = tmp_path / "scanned.pdf"
+    with fitz.open() as document:
+        for _ in range(23):
+            document.new_page()
+        document.save(path)
+    service = DeepReadingService(_settings(tmp_path))
+    artifact = service.extract_local_pdf(str(path))
+    assert artifact.extraction_status == "no_text"
+    assert artifact.pages_without_text == list(range(1, 24))
+    assert not artifact.chunks
+    first = service.read_text(path)
+    assert first["returned_chars"] == 0
+    assert len(first["pages"]) == 20
+    assert first["next_cursor"] == {"start_page": 21, "start_char": 0}
+    last = service.read_text(path, **first["next_cursor"])
+    assert last["end_of_document"] and len(last["warnings"]) == 3
+
+
+@pytest.mark.parametrize("kwargs", [
+    {"start_page": 0}, {"start_page": 3}, {"start_char": -1}, {"start_char": 999999},
+    {"max_chars": 0}, {"max_chars": 20001},
+])
+def test_full_text_rejects_invalid_cursor_and_budget(tmp_path: Path, kwargs) -> None:
+    path = tmp_path / "paper.pdf"
+    _make_pdf(path)
+    with pytest.raises(ValueError):
+        DeepReadingService(_settings(tmp_path)).read_text(path, **kwargs)
+
+
+def test_partial_extraction_and_same_named_pdfs(tmp_path: Path) -> None:
+    first = tmp_path / "paper.pdf"
+    second = tmp_path / "other" / "paper.pdf"
+    second.parent.mkdir()
+    _make_pdf(first)
+    with fitz.open() as document:
+        document.new_page().insert_text((72, 72), "Readable methods")
+        document.new_page()
+        document.save(second)
+    service = DeepReadingService(_settings(tmp_path))
+    a = service.extract_local_pdf(str(first))
+    b = service.extract_local_pdf(str(second))
+    assert a.text_path != b.text_path
+    assert a.extraction_status == "text_extracted"
+    assert b.extraction_status == "partial_text" and b.pages_without_text == [2]
+    assert "Transformer" in a.text_path.read_text()
+
+
+def test_partial_pdf_does_not_emit_empty_page_labels_as_evidence(tmp_path: Path) -> None:
+    path = tmp_path / "partial.pdf"
+    with fitz.open() as document:
+        document.new_page().insert_text((72, 72), "Readable methods and results.")
+        for _ in range(30):
+            document.new_page()
+        document.save(path)
+    artifact = DeepReadingService(_settings(tmp_path)).extract_local_pdf(
+        str(path), chunk_size_chars=50, chunk_overlap_chars=0,
+    )
+    assert artifact.extraction_status == "partial_text"
+    assert artifact.chunks and all(chunk.start_page == 1 for chunk in artifact.chunks)
+    assert "Readable methods and results." in artifact.chunks[0].text

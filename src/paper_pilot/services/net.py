@@ -92,20 +92,25 @@ async def download_capped(
     require_public: bool = True,
 ) -> bytes:
     """Stream ``url`` into memory, aborting if it exceeds ``max_bytes``."""
-    if require_public and not is_public_http_url(url):
-        raise ValueError(f"Refusing to fetch non-public or non-HTTP URL: {url}")
-    chunks: list[bytes] = []
-    total = 0
-    async with client.stream("GET", url) as response:
-        response.raise_for_status()
-        async for chunk in response.aiter_bytes():
-            total += len(chunk)
-            if total > max_bytes:
-                raise DownloadTooLargeError(
-                    f"Download exceeded {max_bytes} bytes; aborting ({url})."
-                )
-            chunks.append(chunk)
-    return b"".join(chunks)
+    for _ in range(client.max_redirects + 1):
+        if require_public and not is_public_http_url(url):
+            raise ValueError(f"Refusing to fetch non-public or non-HTTP URL: {url}")
+        async with client.stream("GET", url, follow_redirects=False) as response:
+            if response.has_redirect_location:
+                url = str(response.url.join(response.headers["location"]))
+                continue
+            response.raise_for_status()
+            chunks: list[bytes] = []
+            total = 0
+            async for chunk in response.aiter_bytes():
+                total += len(chunk)
+                if total > max_bytes:
+                    raise DownloadTooLargeError(
+                        f"Download exceeded {max_bytes} bytes; aborting ({url})."
+                    )
+                chunks.append(chunk)
+            return b"".join(chunks)
+    raise httpx.TooManyRedirects("Download exceeded the redirect limit.")
 
 
 def download_capped_sync(

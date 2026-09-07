@@ -10,23 +10,9 @@ for OA resolution if you have not set your own.
 from __future__ import annotations
 
 import asyncio
-import os
 import sys
 import webbrowser
 from pathlib import Path
-
-_PLACEHOLDER_EMAIL = "paper-pilot-demo@example.com"
-
-
-def _ensure_polite_email() -> None:
-    for var in ("OPENALEX_EMAIL", "UNPAYWALL_EMAIL"):
-        if not os.getenv(var):
-            os.environ[var] = _PLACEHOLDER_EMAIL
-            print(
-                f"[paper-pilot] {var} not set; using a placeholder for the demo. "
-                "Set your own email (free, no signup) for polite, reliable API access.",
-                file=sys.stderr,
-            )
 
 
 def run_demo(
@@ -36,8 +22,6 @@ def run_demo(
     download_top_n: int = 2,
     open_browser: bool = True,
 ) -> dict:
-    _ensure_polite_email()
-    # Imported lazily so the placeholder env is in place before settings load.
     from paper_pilot.server import deep_read_topic
 
     print(f'[paper-pilot] Researching "{topic}" across 6 academic databases…', file=sys.stderr)
