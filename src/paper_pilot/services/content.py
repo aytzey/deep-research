@@ -12,9 +12,9 @@ import hashlib
 from pathlib import Path
 
 try:
-    import fitz
-except ModuleNotFoundError:  # pragma: no cover - compatibility fallback
     import pymupdf as fitz
+except ModuleNotFoundError:  # pragma: no cover - compatibility fallback
+    import fitz
 
 from mcp.server.fastmcp.utilities.types import Image
 from mcp.types import BlobResourceContents, EmbeddedResource, ResourceLink

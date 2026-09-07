@@ -12,23 +12,15 @@ Codex is a good fit when you want:
 
 ## Setup
 
-Add an MCP server block to `~/.codex/config.toml`. A ready-made snippet lives in [examples/codex.config.toml](examples/codex.config.toml).
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and Git, then:
 
-Minimal config:
-
-```toml
-[mcp_servers.paper_pilot]
-command = "uv"
-args = ["--directory", "/absolute/path/to/paper-pilot", "run", "paper-pilot"]
-
-[mcp_servers.paper_pilot.env]
-OPENALEX_EMAIL = "you@example.com"
-UNPAYWALL_EMAIL = "you@example.com"
-ZOTERO_LOCAL = "true"
-ZOTERO_LIBRARY_TYPE = "user"
-ZOTERO_CONNECTOR_URL = "http://127.0.0.1:23119/connector/saveItems"
-ZOTERO_BRIDGE_URL = "http://127.0.0.1:24119"
+```bash
+codex mcp add paper_pilot -- uvx --from git+https://github.com/aytzey/paper-pilot paper-pilot
 ```
+
+Restart Codex. No email, API key, or Zotero setup is required by the server.
+For TOML configuration, use [examples/codex.config.toml](examples/codex.config.toml).
+[Client setup](docs/CLIENTS.md) covers local checkouts, updates, and optional Zotero configuration.
 
 ## First Workflow To Try
 

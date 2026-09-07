@@ -35,5 +35,17 @@ jobs:
       - name: Build package
         run: uv build
 
+      - name: Check clean wheel startup and protocol output
+        run: |
+          uv run --isolated --no-project --with ./dist/*.whl python - <<'PY'
+          import contextlib
+          import io
+          output = io.StringIO()
+          with contextlib.redirect_stdout(output):
+              from paper_pilot.server import mcp
+          assert not output.getvalue(), output.getvalue()
+          print(mcp.name)
+          PY
+
       - name: Check distributions
         run: uvx twine check dist/*

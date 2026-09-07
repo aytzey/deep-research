@@ -1,0 +1,25 @@
+name: Share a research case
+description: Show a research task you tried and what worked or failed
+title: "[case] "
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: What were you trying to find out?
+      description: Include the question or decision you gave your agent. Remove private information.
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: Client and version
+      placeholder: Codex, Claude Code, Claude Desktop, Cursor, or CLI
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: What happened?
+      description: Include a DOI or public paper link and the useful or failed step. For a research claim, include the PDF page supporting it. Do not include credentials or private PDFs.
+    validations:
+      required: true

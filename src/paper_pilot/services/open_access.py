@@ -7,9 +7,9 @@ from pathlib import Path
 import httpx
 
 try:
-    import fitz
-except ModuleNotFoundError:  # pragma: no cover - compatibility fallback
     import pymupdf as fitz
+except ModuleNotFoundError:  # pragma: no cover - compatibility fallback
+    import fitz
 
 from paper_pilot.config import Settings
 from paper_pilot.models import DownloadedDocument, PaperRecord, normalize_doi, slugify, utc_timestamp

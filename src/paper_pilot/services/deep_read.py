@@ -5,9 +5,9 @@ import re
 from pathlib import Path
 
 try:
-    import fitz
-except ModuleNotFoundError:  # pragma: no cover - compatibility fallback
     import pymupdf as fitz
+except ModuleNotFoundError:  # pragma: no cover - compatibility fallback
+    import fitz
 
 from paper_pilot.config import Settings
 from paper_pilot.models import DeepReadArtifact, DownloadedDocument, PaperRecord, TextChunk, slugify

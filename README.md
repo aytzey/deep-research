@@ -1,362 +1,134 @@
 <!-- mcp-name: io.github.aytzey/paper-pilot -->
-![Paper Pilot](docs/hero.svg)
-
 # Paper Pilot
 
-**Give any MCP-capable agent real academic research: 17 tools over 6 scholarly databases, sequential PDF full-text reading, cited evidence extraction, citation graphs, and Zotero sync.**
+**Let Codex and Claude find, download, and read full research papers.**
 
-Paper Pilot searches academic databases, downloads PDFs, and delivers their text to your agent in page order, including methods, results, references, and appendices. The agent follows explicit continuation cursors to read the whole document, inspects figures as images, and can save the papers in Zotero.
+Search six academic databases, read methods and results page by page, inspect figures, and get back to the decision you are trying to make. Paper Pilot is a local MCP server; your existing AI agent does the reasoning.
 
 [![CI](https://github.com/aytzey/paper-pilot/actions/workflows/ci.yml/badge.svg)](https://github.com/aytzey/paper-pilot/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/aytzey/paper-pilot)](https://github.com/aytzey/paper-pilot/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](pyproject.toml)
-[![GitHub stars](https://img.shields.io/github/stars/aytzey/paper-pilot?style=social)](https://github.com/aytzey/paper-pilot/stargazers)
 
----
-
-![Paper Pilot in action](docs/demo.gif)
-
----
+[Install](#quick-start) · [Real example](examples/full-paper-walkthrough.md) · [Reading guide](docs/READING.md) · [Report a problem](https://github.com/aytzey/paper-pilot/issues/new/choose)
 
 ## Quick start
 
-**Try it in 30 seconds. No MCP client, no config:**
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and [Git](https://git-scm.com/downloads) if needed. Choose your client:
+
+**Codex**
 
 ```bash
-# straight from GitHub (works today):
+codex mcp add paper_pilot -- uvx --from git+https://github.com/aytzey/paper-pilot paper-pilot
+```
+
+**Claude Code**
+
+```bash
+claude mcp add --scope user paper-pilot -- uvx --from git+https://github.com/aytzey/paper-pilot paper-pilot
+```
+
+Restart your client, then ask:
+
+> Use Paper Pilot to find “Attention Is All You Need”. Read the full paper, inspect the architecture figure, and explain the method and its limitations with PDF page citations.
+
+No account, API key, email setup, or Zotero installation is required by Paper Pilot. Your AI client's own access and usage costs still apply. The first launch installs Python dependencies; academic APIs can rate-limit requests.
+
+**Claude Desktop or Cursor:** use the [copyable JSON configuration](#mcp-client-setup).
+
+**Try the tools without an AI client:**
+
+```bash
 uvx --from git+https://github.com/aytzey/paper-pilot paper-pilot demo "retrieval augmented generation"
-
-# once published to PyPI:
-uvx paper-pilot demo "retrieval augmented generation"
 ```
 
-This searches 6 academic databases, downloads open-access PDFs, extracts their text into a reading pack, and opens an **interactive citation graph** in your browser. The demo does not run an LLM or produce a completed full-paper synthesis.
+The CLI downloads accessible papers, saves a reading pack, and opens a citation graph. It does not run an LLM or write a finished research conclusion. Results go into `./data/` by default. These commands install from GitHub; a PyPI release is not required.
 
-👉 **See a real run, no install needed:** [sample report](examples/sample-report.md) · [interactive citation graph](examples/sample-citation-graph.html)
+## See what reaches your agent
 
-### Then plug it into your AI agent
+In a recorded stdio MCP check, **Attention Is All You Need** was delivered as 15 pages of text across four responses. All **39,498 extracted characters** arrived in order. The original **2,215,244-byte PDF** also arrived unchanged through both supported PDF transfer paths.
 
-Wire it into your MCP client ([setup below](#mcp-client-setup)), set a free `OPENALEX_EMAIL`, and ask:
+| What was checked | Recorded result |
+|---|---|
+| Whole-document text | Every batch joined to exactly match extraction from all PDF pages |
+| Original PDF | Returned bytes matched the downloaded file |
+| A multidisciplinary example | Two soil-pH papers: 37 pages, 96,163 characters, nine responses |
 
-> *Research retrieval-augmented generation, deep-read the top papers, and compare the methods.*
-
----
-
-## How it works
-
-```mermaid
-graph LR
-    A[Prompt] --> B[Search 6 databases]
-    B --> C[Resolve OA PDFs]
-    C --> D[Download & read]
-    D --> E[Extract evidence]
-    E --> F[Render figures]
-    F --> G[Markdown report]
-    G --> H[Zotero sync]
-```
-
-One prompt searches six academic databases, downloads the real PDFs, and returns real citations.
-
-```
-Research retrieval-augmented generation, deep-read the top papers, and compare the methods.
-```
-
-Your AI will:
-
-1. Search **Semantic Scholar**, **OpenAlex**, **arXiv**, **Crossref**, **Europe PMC**, and **DOAJ**
-2. Find the open-access PDFs, not abstracts
-3. Download PDFs and read every `read_pdf_text` batch until `next_cursor` is `null`
-4. Extract evidence chunks with source attribution
-5. Inspect figures/tables as page images when needed
-6. Write a structured Markdown report
-7. Optionally save the papers into your **Zotero** library
-
----
-
-## Read the whole paper in Codex or Claude
-
-Ask your agent:
-
-> Find papers on <topic>. Use deep_read_topic, read each deep_reads[*].full_text batch,
-> then call read_pdf_text with its pdf_path and next_cursor until null. Read every page,
-> including references and appendices. Render figures and tables. Report unreadable pages
-> and cite PDF page numbers; do not substitute abstracts or top_chunks for a full read.
-
-`deep_read_topic` and `extract_local_pdf_text` deliver the first sequential text batch automatically.
-For a specific PDF URL, call `inspect_open_access_pdf`, then `read_pdf_text` on its returned `pdf_path`.
-Continue with the same path and the returned `start_page` / `start_char`. Each response carries at most
-12,000 text characters by default; even an oversized page continues at the exact character.
-
-The agent can request the **original PDF whenever the task needs it**, without first finishing text
-reading: call `read_pdf_document`, then open the returned local file or fetch its MCP resource link
-to receive the PDF bytes. Set `embed_base64=true` when the client supports embedded PDFs (within the
-tool's size/page limits). Choose text, the PDF, or page images based on the task; receiving the file
-alone does not establish that it was read.
-
-| Reading option | What reaches the model | Use |
-|---|---|---|
-| Abstract / `top_chunks` | Summary or selected, shortened excerpts | Discovery and navigation |
-| `read_pdf_text` | Consecutive page text with a continuation cursor | Full-text reading in any MCP client |
-| `render_pdf_pages` | Page images | Figures, tables, formulas, extraction checks |
-| Local PDF / embedded PDF | File path or optional PDF bytes | Clients that support direct PDF inspection |
-
-`extraction_status` and `pages_without_text` expose extraction gaps. PDFs need an extractable text layer;
-pages without one are reported as unreadable. Text extraction can miss layout or symbols:
-inspect relevant page images and disclose gaps.
-PDFs are stored locally; returned text/images are sent to the configured AI client.
-
-`end_of_document` means the cursor reached the end. It does **not** certify that the agent read earlier
-batches. Reading packs and reports contain excerpts, and must not be presented as completed syntheses.
+Read the [walkthrough and reproduction steps](examples/full-paper-walkthrough.md) or inspect the [verification data](examples/full-text-verification.json). This verifies delivery, not model comprehension. Codex and Claude UI sessions were not tested in that check.
 
 ## Research a practical decision
 
-For example: “I want to build a cheap circuit to measure plant-soil pH. Research the relevant
-soil science, electrode materials and electronics, starting with recent work, and recommend
-an approach I can build and validate.”
+Start with something you need to decide:
 
-The MCP initialization instructions guide the agent to clarify the decision, split it into
-discipline-specific questions, search recent work and foundational references, fully read decisive
-papers, seek contradictory evidence, and compare alternatives under comparable conditions.
-The final recommendation should include sources/pages, rejected alternatives, unresolved questions
-and a first validation experiment. The agent performs the reasoning; the server supplies access
-and reading tools. Instruction delivery alone does not guarantee the agent followed every step.
+> I want to build an inexpensive circuit to measure soil pH. Use Paper Pilot to investigate soil science, electrode materials, and electronics, starting with recent papers and following foundational references. Read the decisive papers in full. Compare cost, calibration, drift, and measurement conditions. Recommend an approach, cite the evidence, and propose the first experiment to validate it.
 
-Start each discovery query with:
+The server supplies research instructions alongside its tools: split the question across disciplines, continue the relevant searches, inspect the full papers, seek contrary evidence, and disclose gaps before recommending an approach.
 
-```python
-search_literature(
-    topic="soil pH reference electrode stability",
-    sort_by="newest",
-    open_access_only=False,
-    limit_per_source=5,
-)
+Other useful starting points:
+
+| Your decision | Ask your agent |
+|---|---|
+| Choose a RAG design | “Compare recent RAG approaches for my document set. Read the evaluation sections and explain which results transfer to my constraints.” |
+| Understand a disputed result | “Find papers supporting and challenging this claim. Compare their methods and conditions with page citations.” |
+| Inspect a paper you already have | “Read this PDF completely. Check the main figures and list the assumptions behind its conclusion.” |
+
+Search covers **Semantic Scholar, OpenAlex, arXiv, Crossref, Europe PMC, and DOAJ**. A working PDF is used directly; missing or failed PDFs are resolved through Unpaywall, with OpenAlex recovery if its API fails. Zotero sync is optional.
+
+## How full-paper reading works
+
+```mermaid
+flowchart LR
+    Q[Your question] --> S[Search across disciplines]
+    S --> P[Download selected PDFs]
+    P --> R[Read text and inspect figures]
+    R --> A[Agent compares the evidence]
 ```
 
-Inspect `source_status`. To go deeper in one database, pass its `next_request` arguments back
-to `search_literature` unchanged. A failed source has a `retry_request`; failure is not exhaustion.
-Download the selected paper with `inspect_open_access_pdf(pdf_url=..., doi=...)`, then read its
-text/PDF. This preserves the selection instead of rerunning a broad download pipeline.
+- **Text:** `read_pdf_text` returns consecutive pages with continuation cursors, including pages longer than a single response.
+- **Figures and tables:** `render_pdf_pages` returns page images for visual inspection.
+- **Original file:** `read_pdf_document` provides the PDF when your agent needs it and the client supports that delivery path.
+- **Evidence trail:** retain source, DOI, PDF page, access location, and extraction warnings.
 
-`newest` requests native date ordering: publication dates where available, first submission for
-arXiv, and year precision for DOAJ. Each record includes its date precision and source; partial
-dates are not padded with invented days. Crossref date paging stops at 10,000 records; narrow
-the query/year range to continue. Results cover returned provider pages, not the entire literature
-in global date order. Metadata may be cached for `CACHE_TTL_SEC`; access and coverage gaps stay visible.
-The existing default remains relevance ranking and `open_access_only=True`.
+The agent must follow every continuation to complete a text read. Scanned PDFs without a text layer are reported as unreadable; OCR is outside the project scope. Search results reflect returned provider pages, so exhaustive literature coverage is not guaranteed.
 
-The detailed product scope and pH case are in [Research decisions](docs/RESEARCH_DECISIONS.md).
-
----
+See the [tool-level reading guide](docs/READING.md) for exact calls, access rules, and limits.
 
 ## MCP client setup
 
-Works on Claude Desktop, Cursor, Claude Code, and Codex, across Windows, macOS, and Linux. Full per-OS config-file locations, the Windows `spawn uv ENOENT` fix, and a per-client capability matrix are in [docs/CLIENTS.md](docs/CLIENTS.md).
-
-### Claude Desktop
-
-Add to `claude_desktop_config.json` (macOS: `~/Library/Application Support/Claude/`, Windows: `%APPDATA%\Claude\`; Claude Desktop has no Linux build, so use Claude Code on Linux):
+For Claude Desktop or Cursor, add this server to your MCP configuration:
 
 ```json
 {
   "mcpServers": {
     "paper-pilot": {
-      "command": "uv",
-      "args": ["--directory", "/path/to/paper-pilot", "run", "paper-pilot"],
-      "env": {
-        "OPENALEX_EMAIL": "you@example.com",
-        "UNPAYWALL_EMAIL": "you@example.com",
-        "ZOTERO_LOCAL": "true"
-      }
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/aytzey/paper-pilot", "paper-pilot"]
     }
   }
 }
 ```
 
-### Claude Code
+Ready-to-copy files: [Claude Desktop](examples/claude-desktop.mcp.json) · [Cursor](examples/cursor.mcp.json) · [Codex](examples/codex.config.toml).
 
-```bash
-claude mcp add --scope user paper-pilot -- uv --directory /path/to/paper-pilot run paper-pilot
-```
+On Windows, if the client cannot find `uvx`, use the executable's full path from `where.exe uvx`. Keep the arguments unchanged. [Client setup](docs/CLIENTS.md) covers configuration locations, local checkouts, updates, PDF capabilities, and optional Zotero setup.
 
-### Codex
+## Where Paper Pilot fits
 
-Add to `~/.codex/config.toml`:
+Use it when you want your existing agent to research a question across disciplines and inspect the actual papers. If your main task is different, these projects are also worth a look:
 
-```toml
-[mcp_servers.paper_pilot]
-command = "uv"
-args = ["--directory", "/path/to/paper-pilot", "run", "paper-pilot"]
-
-[mcp_servers.paper_pilot.env]
-OPENALEX_EMAIL = "you@example.com"
-ZOTERO_LOCAL = "true"
-```
-
-### Cursor
-
-Put this at `.cursor/mcp.json` (this repo) or `~/.cursor/mcp.json` (global), then enable it in Settings (`Cmd/Ctrl+Shift+J`) under Model Context Protocol. See [examples/cursor.mcp.json](examples/cursor.mcp.json).
-
-```json
-{
-  "mcpServers": {
-    "paper-pilot": {
-      "command": "uv",
-      "args": ["--directory", "/path/to/paper-pilot", "run", "paper-pilot"],
-      "env": { "OPENALEX_EMAIL": "you@example.com", "UNPAYWALL_EMAIL": "you@example.com", "ZOTERO_LOCAL": "true" }
-    }
-  }
-}
-```
-
-### Windows note
-
-Claude Desktop and Cursor spawn the command without a shell, so a bare `uv`/`uvx` can fail with `spawn uv ENOENT`. Wrap it (`"command": "cmd", "args": ["/c", "uv", "--directory", "C:\\path\\to\\paper-pilot", "run", "paper-pilot"]`) or use the full path from `where uv`.
-
-### Streamable HTTP mode
-
-```bash
-paper-pilot --transport streamable-http --host 127.0.0.1 --port 8000
-```
-
----
-
-## Tools
-
-| Tool | What it does |
+| Project | Main focus |
 |---|---|
-| `research_topic` | Full pipeline: search, download, report, optional citation graph + Zotero sync |
-| `deep_read_topic` | Everything above + full-text extraction with evidence chunks |
-| `graph_topic` | Render an interactive citation / relatedness graph (HTML) for a topic |
-| `render_pdf_pages` | Render PDF pages as images the model can see (figures, tables, layout) |
-| `read_pdf_document` | Return a downloaded PDF's local path and resource link (embed base64 only on request) |
-| `get_pdf_page_text` | Exact text of specific PDF pages as JSON, for fine-grained lookups (no base64) |
-| `read_pdf_text` | Sequential full text over MCP with exact continuation cursors |
-| `search_literature` | Fine-grained multi-source academic search (6 databases) |
-| `find_similar_papers` | Related work expansion from a seed paper |
-| `inspect_open_access_pdf` | OA availability check and PDF preview |
-| `extract_local_pdf_text` | Text extraction from any local PDF |
-| `list_zotero_collections` | List collections in your local or web Zotero library |
-| `healthcheck` | Verify all connections are up |
+| [arxiv-mcp-server](https://github.com/blazickjp/arxiv-mcp-server) | arXiv literature workflows, original LaTeX section reads, BibTeX, and topic watches |
+| [zotero-mcp](https://github.com/54yyyu/zotero-mcp) | Working with an existing Zotero library through an AI assistant |
+| [PaperQA](https://github.com/Future-House/paper-qa) | A RAG system for answering questions from scientific documents with citations |
 
-Four additional optional tools (disabled by default) are documented in [docs/EXTRAS.md](docs/EXTRAS.md).
+These are different starting points, not a quality ranking. Paper Pilot does not include its own LLM or require a vector database.
 
-> Prefer the CLI? `paper-pilot demo "<topic>"` runs the whole pipeline and opens the citation graph. No MCP client required.
+## Contribute a real research case
 
----
+Try a paper or decision you know well. If the agent misses a source, cannot retrieve a PDF, or loses part of a page, [open an issue](https://github.com/aytzey/paper-pilot/issues/new/choose) with the DOI, client, and failed step. A small reproducible case is particularly useful.
 
-## Who uses this
+For code contributions, see [CONTRIBUTING.md](CONTRIBUTING.md). The most useful work is reliable source access, reading correctness, and verified client instructions.
 
-**PhD students** that don't want to spend a week on a literature review. Point it at your thesis topic, get back a structured comparison with real citations and the PDFs already in Zotero.
+[Architecture](docs/ARCHITECTURE.md) · [Agent instructions](AGENTS.md) · [Codex guide](CODEX.md) · [Claude guide](CLAUDE.md) · [Optional integrations](docs/EXTRAS.md)
 
-**Research labs** that want to scan preprints weekly and auto-file them. Run `research_topic` on a schedule and keep your group library current.
-
-**AI builders** that need their agents to work with real academic papers instead of web scraping snippets.
-
----
-
-## Configuration
-
-**Use an available full-paper PDF directly. Unpaywall resolves missing or failed PDFs by DOI.**
-Unpaywall uses `UNPAYWALL_EMAIL`, then `OPENALEX_EMAIL`, then `nomail@mail.com`
-if both are missing or blank. A PDF URL is tried before making an extra lookup.
-The integration follows the DOI/location model in the [roadoi guide](https://cran.r-project.org/web/packages/roadoi/vignettes/intro.html)
-using the existing Python Unpaywall v2 client; no R installation is needed.
-
-When Unpaywall is needed, downloads try `best_oa_location` and then other `oa_locations` PDF URLs.
-Landing pages and embargoed future locations are not treated as downloadable PDFs.
-`paper.raw.unpaywall` exposes lookup status, OA locations and licensing metadata;
-`paper.raw.pdf_download` identifies the copy actually downloaded. Email configuration is optional.
-API failures are reported even
-when OpenAlex supplies a fallback. DOI-less search records are marked
-`not_applicable` and keep their direct OA access. Valid cached Unpaywall responses can be reused.
-An openable PDF might still be a cover or abstract: the agent must inspect the content. In that case,
-call `inspect_open_access_pdf(doi="...", pdf_url=None)` to request Unpaywall alternatives explicitly.
-
-```bash
-OPENALEX_EMAIL=you@example.com        # Optional contact email for API access
-UNPAYWALL_EMAIL=you@example.com       # Optional; OPENALEX_EMAIL or nomail@mail.com is used otherwise
-SEMANTIC_SCHOLAR_API_KEY=             # Optional, higher rate limits
-
-# Local Zotero
-ZOTERO_LOCAL=true
-ZOTERO_LIBRARY_TYPE=user
-ZOTERO_DATA_DIR=                       # optional: relocated/sandboxed Zotero data dir (default ~/Zotero)
-
-# Web Zotero API (alternative)
-ZOTERO_LIBRARY_ID=
-ZOTERO_API_KEY=
-
-# Storage
-PAPER_PILOT_DATA_DIR=./data
-MAX_DOWNLOAD_MB=75                     # per-PDF download size cap
-PAPER_PILOT_ALLOW_EXTERNAL_PDF=true   # read PDFs outside the data dir (set false on networked transports)
-PDF_EMBED_MAX_MB=5                     # size cap for an embedded PDF resource
-PDF_EMBED_MAX_PAGES=60                 # page cap for an embedded PDF resource
-
-# Institutional networks
-HTTP_PROXY=
-HTTPS_PROXY=
-SSL_CERT_FILE=
-```
-
----
-
-## Project structure
-
-```
-src/paper_pilot/
-  server.py              MCP tools and pipeline orchestration
-  cli.py                 Server entry point + `demo` subcommand
-  demo.py                Zero-config one-command demo runner
-  config.py              Environment and settings
-  services/
-    academic.py          Multi-source scholarly search (6 databases)
-    open_access.py       OA resolution and PDF downloads
-    scihub.py            Sci-Hub paper resolution (opt-in)
-    deep_read.py         Full-text extraction and page rendering
-    zotero.py            Local and web Zotero integration
-    reporting.py         Markdown report + synthesis comparison tables
-    graphing.py          Interactive citation-graph HTML export
-    content.py           PDF/image MCP content blocks (pages as images, embedded PDF)
-    libgen.py            Supplementary LibGen support
-    net.py               SSRF guard + size-capped downloads
-```
-
-Architecture details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-
----
-
-## For AI agents
-
-- [AGENTS.md](AGENTS.md): shared operating guide
-- [CLAUDE.md](CLAUDE.md): Claude Desktop and Claude Code setup
-- [CODEX.md](CODEX.md): Codex setup
-- [docs/CLIENTS.md](docs/CLIENTS.md): side-by-side client comparison
-
----
-
-## Contributing
-
-PRs welcome. The most impactful areas:
-
-- New scholarly source adapters
-- Better OA resolution logic
-- PDF parsing improvements
-- More MCP client configs
-
-See [CONTRIBUTING.md](CONTRIBUTING.md).
-
----
-
-## Disclaimer
-
-This tool is designed for academic research and educational purposes only. Open-access features use only legal, publicly available sources. Optional, disabled-by-default integrations are covered in [docs/EXTRAS.md](docs/EXTRAS.md).
-
----
-
-## License
-
-MIT. Do whatever you want with it.
-
-If this helps your research, [star the repo](https://github.com/aytzey/paper-pilot) and tell a colleague.
+MIT licensed. If this is useful for your next research task, [star Paper Pilot](https://github.com/aytzey/paper-pilot) to keep it handy. Sharing a case that worked helps other people decide whether to try it.

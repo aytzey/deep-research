@@ -1,0 +1,118 @@
+{
+  "verified_at": "2026-09-07T11:01:59.238544+00:00",
+  "transport": "stdio MCP ClientSession",
+  "tool_count": 17,
+  "paper": {
+    "title": "Attention Is All You Need",
+    "source_id": "1706.03762v7",
+    "authors": [
+      "Ashish Vaswani",
+      "Noam Shazeer",
+      "Niki Parmar",
+      "Jakob Uszkoreit",
+      "Llion Jones",
+      "Aidan N. Gomez",
+      "Lukasz Kaiser",
+      "Illia Polosukhin"
+    ],
+    "year": 2017,
+    "pdf_url": "https://arxiv.org/pdf/1706.03762v7"
+  },
+  "pdf_sha256": "bdfaa68d8984f0dc02beaca527b76f207d99b666d31d1da728ee0728182df697",
+  "page_count": 15,
+  "text_chars": 39498,
+  "batch_count": 4,
+  "all_pages_equal_pdf_extraction": true,
+  "last_page_chars": 781,
+  "references_and_conclusion_delivered": true,
+  "page_3_image_delivered": true,
+  "batches": [
+    {
+      "chars": 12000,
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "next_cursor": {
+        "start_page": 5,
+        "start_char": 551
+      }
+    },
+    {
+      "chars": 12000,
+      "pages": [
+        5,
+        6,
+        7,
+        8
+      ],
+      "next_cursor": {
+        "start_page": 8,
+        "start_char": 2564
+      }
+    },
+    {
+      "chars": 12000,
+      "pages": [
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "next_cursor": {
+        "start_page": 12,
+        "start_char": 2069
+      }
+    },
+    {
+      "chars": 3498,
+      "pages": [
+        12,
+        13,
+        14,
+        15
+      ],
+      "next_cursor": null
+    }
+  ],
+  "provider_warning_count": 1,
+  "limitations": [
+    "Protocol-level verification; no Claude Desktop or Codex UI session was exercised.",
+    "This verifies delivered text, not model comprehension or visual inspection of every page."
+  ],
+  "pdf_transfer": {
+    "transport": "stdio MCP",
+    "pdf_sha256": "bdfaa68d8984f0dc02beaca527b76f207d99b666d31d1da728ee0728182df697",
+    "pdf_bytes": 2215244,
+    "resource_bytes_equal_original": true,
+    "embedded_bytes_equal_original": true,
+    "client_ui_verified": false
+  },
+  "soil_ph": {
+    "instructions_sha256": "53fc383c09d52becb6c2ef0a2dd756e7d4dfcfbf244e719b6a53cf617fccce04",
+    "papers": [
+      {
+        "doi": "10.1038/s41598-026-57457-7",
+        "title": "Distributable screen-printed soil pH sensor demonstrates robust response across variable soil conditions.",
+        "pages": 24,
+        "characters": 60332,
+        "batches": 6,
+        "warnings": [],
+        "sha256": "8ac4a5fa370729dd698aa27faecbefea497b23fbbab80132ecf30670e15cdef5"
+      },
+      {
+        "doi": "10.3390/mi14122188",
+        "title": "Espial: Electrochemical Soil pH Sensor for In Situ Real-Time Monitoring.",
+        "pages": 13,
+        "characters": 35831,
+        "batches": 3,
+        "warnings": [],
+        "sha256": "90c3639d9d51d9ac67f79e4d1c93d76541abb65730b3c35f1200977dfd98fe1a"
+      }
+    ]
+  }
+}

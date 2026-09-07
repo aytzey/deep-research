@@ -12,31 +12,16 @@ Claude is a good fit when you want:
 
 ## Setup
 
-Use the config in [examples/claude-desktop.mcp.json](examples/claude-desktop.mcp.json) or adapt this block in Claude Desktop:
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and Git. For Claude Code:
 
-```json
-{
-  "mcpServers": {
-    "paper-pilot": {
-      "command": "uv",
-      "args": [
-        "--directory",
-        "/absolute/path/to/paper-pilot",
-        "run",
-        "paper-pilot"
-      ],
-      "env": {
-        "OPENALEX_EMAIL": "you@example.com",
-        "UNPAYWALL_EMAIL": "you@example.com",
-        "ZOTERO_LOCAL": "true",
-        "ZOTERO_LIBRARY_TYPE": "user",
-        "ZOTERO_CONNECTOR_URL": "http://127.0.0.1:23119/connector/saveItems",
-        "ZOTERO_BRIDGE_URL": "http://127.0.0.1:24119"
-      }
-    }
-  }
-}
+```bash
+claude mcp add --scope user paper-pilot -- uvx --from git+https://github.com/aytzey/paper-pilot paper-pilot
 ```
+
+For Claude Desktop, copy [examples/claude-desktop.mcp.json](examples/claude-desktop.mcp.json)
+into its MCP configuration. Restart the client. No email, API key, or Zotero setup is required
+by the server. [Client setup](docs/CLIENTS.md) covers configuration locations, Windows,
+local checkouts, and optional Zotero configuration.
 
 ## First Workflow To Try
 
