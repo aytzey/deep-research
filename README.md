@@ -258,24 +258,24 @@ Four additional optional tools (disabled by default) are documented in [docs/EXT
 ## Configuration
 
 **Use an available full-paper PDF directly. Unpaywall resolves missing or failed PDFs by DOI.**
-Configure `UNPAYWALL_EMAIL` (falls back to `OPENALEX_EMAIL`) for that fallback;
-working PDF downloads do not require it. A URL is tried before making an extra lookup.
+Unpaywall uses `UNPAYWALL_EMAIL`, then `OPENALEX_EMAIL`, then `nomail@mail.com`
+if both are missing or blank. A PDF URL is tried before making an extra lookup.
 The integration follows the DOI/location model in the [roadoi guide](https://cran.r-project.org/web/packages/roadoi/vignettes/intro.html)
 using the existing Python Unpaywall v2 client; no R installation is needed.
 
 When Unpaywall is needed, downloads try `best_oa_location` and then other `oa_locations` PDF URLs.
 Landing pages and embargoed future locations are not treated as downloadable PDFs.
 `paper.raw.unpaywall` exposes lookup status, OA locations and licensing metadata;
-`paper.raw.pdf_download` identifies the copy actually downloaded. Missing email is reported only
-for records needing Unpaywall; it does not block working PDFs. API failures are reported even
+`paper.raw.pdf_download` identifies the copy actually downloaded. Email configuration is optional.
+API failures are reported even
 when OpenAlex supplies a fallback. DOI-less search records are marked
 `not_applicable` and keep their direct OA access. Valid cached Unpaywall responses can be reused.
 An openable PDF might still be a cover or abstract: the agent must inspect the content. In that case,
 call `inspect_open_access_pdf(doi="...", pdf_url=None)` to request Unpaywall alternatives explicitly.
 
 ```bash
-OPENALEX_EMAIL=you@example.com        # Required for polite API access
-UNPAYWALL_EMAIL=you@example.com       # Required when Unpaywall fallback is needed
+OPENALEX_EMAIL=you@example.com        # Optional contact email for API access
+UNPAYWALL_EMAIL=you@example.com       # Optional; OPENALEX_EMAIL or nomail@mail.com is used otherwise
 SEMANTIC_SCHOLAR_API_KEY=             # Optional, higher rate limits
 
 # Local Zotero

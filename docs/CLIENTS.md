@@ -23,7 +23,8 @@ so no C toolchain is needed.
 - **From PyPI (once published):** `command: "uvx"`, `args: ["paper-pilot"]`.
 - **From a local checkout (works today):** `command: "uv"`, `args: ["--directory", "<abs path>", "run", "paper-pilot"]`.
 
-Set `OPENALEX_EMAIL` and `UNPAYWALL_EMAIL` (free, no signup) so open-access PDF resolution works.
+Email configuration is optional. Unpaywall uses `UNPAYWALL_EMAIL`, then `OPENALEX_EMAIL`,
+then `nomail@mail.com` when both are missing or blank.
 
 ## Config file locations
 

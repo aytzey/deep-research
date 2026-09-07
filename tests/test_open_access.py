@@ -251,13 +251,16 @@ def test_previous_unpaywall_error_can_recover_after_pdf_failure(tmp_path, monkey
 
 
 @pytest.mark.parametrize("initial_path", [None, "/broken.pdf"])
-def test_unconfigured_unpaywall_still_uses_openalex(tmp_path, monkeypatch, initial_path):
+@pytest.mark.parametrize("unpaywall_status", [200, 403])
+def test_missing_email_uses_dummy_then_openalex_on_failure(tmp_path, monkeypatch, initial_path, unpaywall_status):
     data = _pdf_bytes()
     requested = []
 
     def handler(request):
         requested.append(request.url.host)
-        assert request.url.host != "api.unpaywall.org"
+        if request.url.host == "api.unpaywall.org":
+            assert request.url.params["email"] == "nomail@mail.com"
+            return httpx.Response(unpaywall_status, json={"is_oa": True, "best_oa_location": {"url_for_pdf": _PUBLIC_PDF}})
         if request.url.host == "api.openalex.org":
             return httpx.Response(200, json={"id": "W1", "display_name": "Paper",
                                             "best_oa_location": {"pdf_url": _PUBLIC_PDF}})
@@ -273,7 +276,14 @@ def test_unconfigured_unpaywall_still_uses_openalex(tmp_path, monkeypatch, initi
     settings.cache_dir.mkdir()
     url = f"https://93.184.216.34{initial_path}" if initial_path else None
     document = asyncio.run(OpenAccessService(settings).inspect_remote_pdf(url, doi="10.1234/test"))
-    assert document.path.read_bytes() == data and "api.openalex.org" in requested
-    assert document.paper.raw["pdf_download"]["resolver"] == "openalex"
-    assert "UNPAYWALL_EMAIL" in document.paper.raw["unpaywall"]["error"]
-    assert any("OpenAlex fallback" in warning for warning in document.paper.raw["access_warnings"])
+    assert document.path.read_bytes() == data
+    assert "api.unpaywall.org" in requested
+    if unpaywall_status == 200:
+        assert "api.openalex.org" not in requested
+        assert document.paper.raw["pdf_download"]["resolver"] == "unpaywall"
+        assert document.paper.raw["unpaywall"]["status"] == "ok"
+    else:
+        assert requested.index("api.unpaywall.org") < requested.index("api.openalex.org")
+        assert document.paper.raw["pdf_download"]["resolver"] == "openalex"
+        assert "HTTPStatusError" in document.paper.raw["unpaywall"]["error"]
+        assert any("OpenAlex fallback" in warning for warning in document.paper.raw["access_warnings"])

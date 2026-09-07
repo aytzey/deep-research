@@ -66,8 +66,9 @@ gereksiz çağrı ve yapılandırma zorunluluğu yaratıyordu. Güncel kural: me
 erişim sorunu varsa Unpaywall'a başvur. PDF'siz kayıtların ilk 20 DOI ile kesilmesi kaldırılmıştır.
 Yalnız en iyi bağlantı → kullanılabilir diğer OA PDF konumlarıyla devam.
 Sessiz OpenAlex dönüşü → Unpaywall hatası görünür, OpenAlex'in alternatif kaynak olduğu açık.
-E-posta yalnız Unpaywall gerektiğinde aranır. Eksikse ilgili kayıtta hata ve uyarı:
-`Unpaywall fallback needs UNPAYWALL_EMAIL (or OPENALEX_EMAIL).` Çalışan diğer PDF'ler engellenmez.
+E-posta ayarı isteğe bağlıdır. Unpaywall sırasıyla `UNPAYWALL_EMAIL`, `OPENALEX_EMAIL`,
+ikisi de boşsa kullanıcının istediği `nomail@mail.com` adresini kullanır.
+API hatası olursa hata görünür kalır ve OpenAlex alternatifi denenir.
 PDF dosyasının açılması, tam makale olduğuna karar vermek için yeterli değildir; bunu AI içerikten
 değerlendirir. Kapak/abstract çıktıysa `inspect_open_access_pdf(doi="...", pdf_url=None)` ile
 Unpaywall yolu istenir. Sunucu sayfa sayısından tam makale sertifikası üretmez.

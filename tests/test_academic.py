@@ -144,16 +144,39 @@ def test_unpaywall_checks_all_missing_pdf_dois_and_preserves_locations(tmp_path:
     assert enriched[0].raw["unpaywall"]["oa_locations"] == [best, alternate]
 
 
-def test_missing_email_only_affects_records_needing_unpaywall(tmp_path: Path) -> None:
-    service = AcademicSearchService(replace(_settings(tmp_path), unpaywall_email=None))
+@pytest.mark.parametrize("unpaywall_email,openalex_email,expected", [
+    (None, None, "nomail@mail.com"),
+    ("", "", "nomail@mail.com"),
+    ("  ", "\t", "nomail@mail.com"),
+    (" unpaywall@example.org ", "openalex@example.org", "unpaywall@example.org"),
+    (None, "openalex@example.org", "openalex@example.org"),
+    ("  ", " openalex@example.org ", "openalex@example.org"),
+])
+def test_unpaywall_email_fallback(tmp_path, unpaywall_email, openalex_email, expected) -> None:
+    service = AcademicSearchService(replace(_settings(tmp_path), unpaywall_email=unpaywall_email, openalex_email=openalex_email))
+    service.settings.cache_dir.mkdir()
     paper = PaperRecord(source="test", source_id="1", title="Paper")
     records, _ = asyncio.run(service._enrich_with_unpaywall(None, [paper]))
     assert records[0].raw["unpaywall"]["status"] == "not_applicable"
     paper.doi = "10.1234/1"
     available = PaperRecord(source="test", source_id="2", title="Available", doi="10.1234/2", pdf_url="https://example.org/full.pdf")
-    records, warnings = asyncio.run(service._enrich_with_unpaywall(None, [paper, available]))
-    assert "UNPAYWALL_EMAIL" in warnings[0]
-    assert records[0].raw["unpaywall"]["status"] == "error"
+    requested = []
+
+    def handler(request):
+        requested.append(request)
+        return httpx.Response(200, json={"is_oa": True, "best_oa_location": {"url_for_pdf": "https://example.org/paper.pdf"}})
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            return await service._enrich_with_unpaywall(client, [paper, available])
+
+    records, warnings = asyncio.run(run())
+    assert warnings == []
+    assert len(requested) == 1
+    assert requested[0].url.host == "api.unpaywall.org"
+    assert requested[0].url.params["email"] == expected
+    assert records[0].raw["unpaywall"]["status"] == "ok"
+    assert records[0].pdf_url == "https://example.org/paper.pdf"
     assert records[1].raw["unpaywall"]["status"] == "deferred"
     records, warnings = asyncio.run(service._enrich_with_unpaywall(None, [available]))
     assert warnings == []

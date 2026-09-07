@@ -830,12 +830,10 @@ class AcademicSearchService:
         semaphore: asyncio.Semaphore,
     ) -> tuple[str, dict[str, Any], str | None]:
         async with semaphore:
-            unpaywall_error = "Unpaywall fallback needs UNPAYWALL_EMAIL (or OPENALEX_EMAIL)."
-            if self.settings.unpaywall_email and self.settings.unpaywall_email.strip():
-                try:
-                    return "unpaywall", await self._lookup_unpaywall(client, doi), None
-                except Exception as exc:
-                    unpaywall_error = type(exc).__name__
+            try:
+                return "unpaywall", await self._lookup_unpaywall(client, doi), None
+            except Exception as exc:
+                unpaywall_error = type(exc).__name__
 
             try:
                 return "openalex", await self._lookup_openalex_by_doi(client, doi), unpaywall_error
@@ -852,7 +850,7 @@ class AcademicSearchService:
             return await self._get_json(
                 client,
                 f"https://api.unpaywall.org/v2/{quote(doi, safe='')}",
-                {"email": self.settings.unpaywall_email},
+                {"email": self.settings.effective_unpaywall_email},
                 "unpaywall_lookup",
                 timeout=httpx.Timeout(10.0, connect=3.0),
             )
@@ -866,7 +864,7 @@ class AcademicSearchService:
         return await self._get_json(
             client,
             f"https://api.unpaywall.org/v2/{quote(doi, safe='')}",
-            {"email": self.settings.unpaywall_email},
+            {"email": self.settings.effective_unpaywall_email},
             "unpaywall_lookup",
             timeout=httpx.Timeout(10.0, connect=3.0),
         )

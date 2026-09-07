@@ -268,7 +268,8 @@ def healthcheck() -> dict:
         "deep_reads_dir": str(settings.deep_reads_dir),
         "render_dir": str(settings.render_dir),
         "openalex_email_configured": bool(settings.openalex_email),
-        "unpaywall_email_configured": bool(settings.unpaywall_email),
+        "unpaywall_email_configured": bool((settings.unpaywall_email or "").strip() or (settings.openalex_email or "").strip()),
+        "unpaywall_enabled": settings.unpaywall_enabled,
         "unpaywall_role": "pdf_fallback",
         "semantic_scholar_api_key_configured": bool(settings.semantic_scholar_api_key),
         "zotero": zotero_status,
@@ -278,14 +279,12 @@ def healthcheck() -> dict:
         "scihub_enabled": settings.scihub_enabled,
         "scihub_mirrors": list(settings.scihub_mirrors),
         "note": (
+            "Unpaywall uses nomail@mail.com when no email is configured. "
             "Legal OA sources honor trust_env proxies and optional SSL_CERT_FILE; "
             "LibGen and Sci-Hub remain best-effort only. Local Zotero mode uses localhost:23119 "
             "and optionally a zoty-bridge compatible /execute plugin for full writes."
         ),
-        "remediation": _collect_remediation(zotero_status) + (
-            [] if settings.unpaywall_email and settings.unpaywall_email.strip()
-            else ["Set UNPAYWALL_EMAIL (or OPENALEX_EMAIL) to resolve missing or failed PDFs via Unpaywall."]
-        ),
+        "remediation": _collect_remediation(zotero_status),
     }
 
 

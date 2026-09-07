@@ -61,8 +61,12 @@ class Settings:
         return bool(self.zotero_local and self.zotero_bridge_url)
 
     @property
+    def effective_unpaywall_email(self) -> str:
+        return (self.unpaywall_email or "").strip() or (self.openalex_email or "").strip() or "nomail@mail.com"
+
+    @property
     def unpaywall_enabled(self) -> bool:
-        return bool(self.unpaywall_email)
+        return bool(self.effective_unpaywall_email)
 
     @property
     def proxy_configured(self) -> bool:
