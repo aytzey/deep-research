@@ -223,3 +223,28 @@ def test_failed_pdf_uses_openalex_when_unpaywall_is_unavailable(tmp_path, monkey
     assert document.paper.raw["unpaywall"]["status"] == "error"
     assert document.paper.raw["pdf_download"]["resolver"] == "openalex"
     assert any("OpenAlex fallback" in warning for warning in document.paper.raw["access_warnings"])
+
+
+def test_previous_unpaywall_error_can_recover_after_pdf_failure(tmp_path, monkeypatch):
+    data = _pdf_bytes()
+    calls = []
+
+    def handler(request):
+        return httpx.Response(404 if request.url.path == "/broken.pdf" else 200, content=data)
+
+    async def lookup(self, client, doi):
+        calls.append(doi)
+        return {"is_oa": True, "best_oa_location": {"url_for_pdf": _PUBLIC_PDF}}
+
+    async def no_delay(seconds):
+        pass
+
+    original_client = httpx.AsyncClient
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: original_client(transport=httpx.MockTransport(handler), **kwargs))
+    monkeypatch.setattr(AcademicSearchService, "_lookup_unpaywall", lookup)
+    monkeypatch.setattr(asyncio, "sleep", no_delay)
+    paper = PaperRecord(source="test", source_id="1", title="Paper", doi="10.1234/test",
+                        pdf_url="https://93.184.216.34/broken.pdf", raw={"unpaywall": {"status": "error"}})
+    documents, _ = asyncio.run(OpenAccessService(_settings(tmp_path)).download_best_papers("topic", [paper]))
+    assert len(documents) == 1 and documents[0].path.read_bytes() == data
+    assert calls == [paper.doi] and paper.raw["unpaywall"]["status"] == "ok"

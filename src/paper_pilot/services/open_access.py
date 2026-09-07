@@ -44,7 +44,7 @@ class OpenAccessService:
                     try:
                         path = await self._download_pdf(client, topic, paper)
                     except Exception:
-                        if not paper.doi or (paper.raw.get("unpaywall") or {}).get("status") in {"ok", "error"}:
+                        if not paper.doi or (paper.raw.get("unpaywall") or {}).get("status") == "ok":
                             raise
                         _, lookup_warnings = await AcademicSearchService(self.settings)._enrich_with_unpaywall(
                             client, [paper], force_lookup=True,

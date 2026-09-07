@@ -184,3 +184,18 @@ def test_partial_extraction_and_same_named_pdfs(tmp_path: Path) -> None:
     assert a.extraction_status == "text_extracted"
     assert b.extraction_status == "partial_text" and b.pages_without_text == [2]
     assert "Transformer" in a.text_path.read_text()
+
+
+def test_partial_pdf_does_not_emit_empty_page_labels_as_evidence(tmp_path: Path) -> None:
+    path = tmp_path / "partial.pdf"
+    with fitz.open() as document:
+        document.new_page().insert_text((72, 72), "Readable methods and results.")
+        for _ in range(30):
+            document.new_page()
+        document.save(path)
+    artifact = DeepReadingService(_settings(tmp_path)).extract_local_pdf(
+        str(path), chunk_size_chars=50, chunk_overlap_chars=0,
+    )
+    assert artifact.extraction_status == "partial_text"
+    assert artifact.chunks and all(chunk.start_page == 1 for chunk in artifact.chunks)
+    assert "Readable methods and results." in artifact.chunks[0].text

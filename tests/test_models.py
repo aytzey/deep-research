@@ -33,3 +33,12 @@ def test_combine_papers_prefers_more_complete_record() -> None:
 def test_normalize_doi_accepts_doi_prefix_and_host_without_scheme() -> None:
     assert normalize_doi("doi:10.1000/TEST") == "10.1000/test"
     assert normalize_doi("doi.org/10.1000/TEST") == "10.1000/test"
+
+
+def test_merged_year_matches_selected_publication_date() -> None:
+    sparse = PaperRecord(source="local", source_id="1", title="Paper", doi="10.1000/date", year=2025)
+    dated = PaperRecord(source="openalex", source_id="2", title="Paper", doi="10.1000/date",
+                        year=2026, publication_date="2026-02-10")
+    merged = combine_papers([sparse, dated])[0]
+    assert merged.publication_date == "2026-02-10"
+    assert merged.year == 2026

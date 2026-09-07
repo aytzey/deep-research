@@ -270,7 +270,7 @@ def combine_papers(records: list[PaperRecord]) -> list[PaperRecord]:
             title=existing.title if len(existing.title) >= len(record.title) else record.title,
             authors=existing.authors if len(existing.authors) >= len(record.authors) else record.authors,
             abstract=existing.abstract if len(existing.abstract or "") >= len(record.abstract or "") else record.abstract,
-            year=existing.year or record.year,
+            year=int(dated.publication_date[:4]) if dated.publication_date else existing.year or record.year,
             venue=existing.venue or record.venue,
             doi=existing.doi or record.doi,
             url=existing.url or record.url,

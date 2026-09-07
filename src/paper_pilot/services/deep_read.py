@@ -79,8 +79,10 @@ class DeepReadingService:
             "no_text" if len(pages_without_text) == page_count
             else "partial_text" if pages_without_text else "text_extracted"
         )
-        if extraction_status == "no_text":
-            chunks = []  # Page labels alone are not evidence.
+        empty_pages = set(pages_without_text)
+        # Page labels alone are not evidence, including inside a partially readable PDF.
+        chunks = [chunk for chunk in chunks
+                  if any(page not in empty_pages for page in range(chunk.start_page, chunk.end_page + 1))]
         stem = f"{pdf_path.stem}-{stable_doc_id(pdf_path)}"
         text_path = self.settings.deep_reads_dir / f"{stem}.txt"
         manifest_path = self.settings.deep_reads_dir / f"{stem}.chunks.json"

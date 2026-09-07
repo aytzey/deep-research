@@ -48,3 +48,29 @@ def test_download_capped_rejects_internal_url() -> None:
                 await download_capped(client, "http://127.0.0.1/secret.pdf", 10_000)
 
     asyncio.run(run())
+
+
+def test_download_redirects_validate_each_target_and_remain_bounded() -> None:
+    requested = []
+
+    def handler(request):
+        requested.append(str(request.url))
+        targets = {"/private": "http://127.0.0.1/secret", "/public": "/paper", "/loop": "/loop"}
+        if request.url.path in targets:
+            return httpx.Response(302, headers={"Location": targets[request.url.path]})
+        return httpx.Response(200, content=b"%PDF content")
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=True, max_redirects=2) as client:
+            base = "https://93.184.216.34"
+            with pytest.raises(ValueError):
+                await download_capped(client, base + "/private", 100)
+            assert requested == [base + "/private"]
+            assert await download_capped(client, base + "/public", 100) == b"%PDF content"
+            with pytest.raises(DownloadTooLargeError):
+                await download_capped(client, base + "/public", 5)
+            with pytest.raises(httpx.TooManyRedirects):
+                await download_capped(client, base + "/loop", 100)
+            assert requested.count(base + "/loop") == 3
+
+    asyncio.run(run())
