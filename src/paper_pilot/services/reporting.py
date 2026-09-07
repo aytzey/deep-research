@@ -148,7 +148,7 @@ class ReportService:
         lines.extend(
             [
                 f"- **Research question:** {research_question}",
-                f"- **Deep-read papers:** {len(deep_reads)}",
+                f"- **PDFs processed for text extraction:** {len(deep_reads)}",
                 f"- **Total candidate papers:** {len(papers)}",
             ]
         )
@@ -162,7 +162,12 @@ class ReportService:
                 lines.append(f"- {warning}")
             lines.append("")
 
-        # Screenshot-worthy at-a-glance comparison of everything that was read.
+        lines.extend([
+            "> This is a reading pack of ranked excerpts, not a completed full-paper synthesis. "
+            "Use read_pdf_text from page 1 through next_cursor=null for each PDF; resolve extraction "
+            "gaps and inspect figures/tables before drawing conclusions.",
+            "",
+        ])
         if deep_reads:
             lines.extend(
                 [
@@ -183,8 +188,8 @@ class ReportService:
                 )
             lines.append("")
             lines.append(
-                "> Fill in Method / Key finding / Limitation per paper from the Evidence "
-                "excerpts below, citing the page ranges shown."
+                "> Fill in Method / Key finding / Limitation after reading the full paper, "
+                "citing the PDF page numbers. The excerpts below help navigate."
             )
             lines.append("")
 
@@ -194,6 +199,7 @@ class ReportService:
             lines.append(f"  PDF: `{artifact.pdf_path}`")
             lines.append(f"  Full text: `{artifact.text_path}`")
             lines.append(f"  Chunk manifest: `{artifact.chunk_manifest_path}`")
+            lines.append(f"  Extraction: `{artifact.extraction_status}`; pages without text: {artifact.pages_without_text or 'none'}")
         lines.append("")
 
         lines.extend(["## Evidence", ""])

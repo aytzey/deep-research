@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import json
 from dataclasses import replace
 from pathlib import Path
 
@@ -177,3 +178,77 @@ def test_deep_read_topic_escalation_off(tmp_path: Path, monkeypatch) -> None:
     assert isinstance(out, list)
     assert len(out) == 1  # only the result dict, no inlined content blocks
     assert out[0]["pdf_paths"]  # file paths still surfaced
+    reading = out[0]["deep_reads"][0]["full_text"]
+    assert reading["end_of_document"]
+    assert [p["page"] for p in reading["pages"]] == [1, 2]
+
+
+def test_full_text_mcp_batches_reconstruct_every_page(tmp_path: Path, monkeypatch) -> None:
+    _patch_settings(tmp_path, monkeypatch)
+    pdf = tmp_path / "complete.pdf"
+    with fitz.open() as document:
+        for number in range(1, 9):
+            page = document.new_page()
+            for line in range(32):
+                page.insert_text((40, 50 + 20 * line), f"Page {number}, line {line}: methods and evidence beyond the abstract.")
+        document[-1].insert_text((40, 720), "FINAL APPENDIX: late evidence must reach the model.")
+        document.save(pdf)
+    expected = server.get_pdf_page_text(str(pdf), list(range(1, 9)))["pages"]
+    reconstructed = {p["page"]: "" for p in expected}
+    cursor = {"start_page": 1, "start_char": 0}
+    saw_split = False
+    while cursor is not None:
+        # Exercise FastMCP serialization, not just the Python service return value.
+        result = asyncio.run(server.mcp._tool_manager.call_tool(
+            "read_pdf_text", {"pdf_path": str(pdf), "max_chars": 701, **cursor},
+            context=None, convert_result=True,
+        ))
+        blocks = result[0] if isinstance(result, tuple) else result
+        batch = json.loads(next(b.text for b in blocks if b.type == "text"))
+        assert batch["returned_chars"] <= 701
+        assert not batch["warnings"]
+        for page in batch["pages"]:
+            assert page["start_char"] == len(reconstructed[page["page"]])
+            reconstructed[page["page"]] += page["text"]
+            saw_split |= not page["page_complete"]
+        assert batch["next_cursor"] != cursor
+        cursor = batch["next_cursor"]
+    assert saw_split
+    assert reconstructed == {p["page"]: p["text"] for p in expected}
+    assert "FINAL APPENDIX" in reconstructed[8]
+
+
+@pytest.mark.parametrize("tool,kwargs", [
+    (server.read_pdf_text, {}),
+    (server.extract_local_pdf_text, {}),
+    (server.render_pdf_pages, {"page_numbers": [1]}),
+])
+def test_pdf_readers_enforce_data_directory(tmp_path: Path, monkeypatch, tool, kwargs) -> None:
+    pdf = tmp_path / "outside.pdf"
+    _make_pdf(pdf)
+    settings = _settings(tmp_path / "data", allow_external_pdf_paths=False)
+    monkeypatch.setattr(server, "get_settings", lambda: settings)
+    with pytest.raises(ValueError, match="outside the data directory"):
+        tool(str(pdf), **kwargs)
+
+
+def test_deep_read_preserves_good_paper_when_another_is_corrupt(tmp_path: Path, monkeypatch) -> None:
+    _patch_settings(tmp_path, monkeypatch)
+    good = tmp_path / "good.pdf"
+    bad = tmp_path / "broken.pdf"
+    _make_pdf(good)
+    bad.write_bytes(b"%PDF broken")
+    paper = PaperRecord(source="test", source_id="1", title="Paper")
+
+    async def fake_pipeline(**kwargs):
+        return {
+            "top_papers": [paper], "related_papers": [], "warnings": [],
+            "downloads": [DownloadedDocument(paper, path, 2, "") for path in [bad, good]],
+            "scihub_downloads": [],
+        }
+
+    monkeypatch.setattr(server, "_run_research_pipeline", fake_pipeline)
+    result = asyncio.run(server.deep_read_topic("topic"))[0]
+    assert [p["pdf_path"] for p in result["deep_reads"]] == [str(good)]
+    assert result["extraction_failures"][0]["pdf_path"] == str(bad)
+    assert result["warnings"]

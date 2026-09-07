@@ -129,6 +129,7 @@ Paper Pilot defaults to **file paths, not base64**, so it is light and works eve
 | Capability | Claude Code | Codex | Cursor | Claude Desktop |
 | --- | --- | --- | --- | --- |
 | Text chunks + report (JSON) | ✅ | ✅ | ✅ | ✅ |
+| `read_pdf_text` (all page text through continuation cursors) | ✅ | ✅ | ✅ | ✅ |
 | `get_pdf_page_text` (exact page text over the wire) | ✅ | ✅ | ✅ | ✅ |
 | Open the PDF from `pdf_path` directly | ✅ (native Read) | ✅ (shell) | ⚠️ (if file access) | ❌ (no file tool) |
 | `render_pdf_pages` images the model sees | ✅ | ✅ | ✅ | ✅ (≤ ~1 MB per image) |
@@ -138,11 +139,26 @@ Takeaways: text and `get_pdf_page_text` work on every client. For figures, `rend
 
 ## Suggested workflow (any client)
 
+For practical design decisions, start with the research workflow sent in the MCP initialization
+instructions: clarify constraints, make discipline-specific `search_literature` queries with
+`sort_by="newest", open_access_only=False`, follow the needed source `next_request` arguments,
+and read selected papers completely. Compare conditions and contrary evidence before recommending
+an approach and its first validation experiment. The server cannot certify that a model followed
+these instructions. See [the shared workflow](../README.md#research-a-practical-decision).
+
+For a quick reading pack:
+
 1. `healthcheck`
-2. `research_topic` or `deep_read_topic`
-3. `render_pdf_pages` when a figure or table matters
-4. `get_pdf_page_text` for an exact detail on a known page
+2. `deep_read_topic`: read the first batch in every `deep_reads[*].full_text`
+3. `read_pdf_text` with each PDF's `next_cursor.start_page` / `start_char`, repeatedly until null
+4. `render_pdf_pages` for figures/tables; disclose pages without extractable text
 5. `write_to_zotero=true` only after Zotero health is confirmed
+
+No client needs filesystem access or PDF-resource support for `read_pdf_text`: the text is in the
+tool response. The default batch holds up to 12,000 text characters (maximum 20,000) and 20 page segments.
+An oversized page resumes at the exact character.
+Read from page 1, char 0 through every continuation before claiming complete reading, and disclose
+unresolved extraction gaps. PDFs need a readable text layer; figures/formulas still need visual inspection.
 
 ## Prompt starters
 

@@ -3,9 +3,9 @@
 
 # Paper Pilot
 
-**Give any MCP-capable agent real academic research: 16 tools over 6 scholarly databases, open-access PDF full-text reading, cited evidence extraction, citation graphs, and Zotero sync.**
+**Give any MCP-capable agent real academic research: 17 tools over 6 scholarly databases, sequential PDF full-text reading, cited evidence extraction, citation graphs, and Zotero sync.**
 
-Your AI Googles when you say "research." Paper Pilot searches real academic databases, downloads the PDFs, reads them cover to cover, renders the figures, gives you evidence with citations, and files it all in your Zotero library.
+Paper Pilot searches academic databases, downloads PDFs, and delivers their text to your agent in page order, including methods, results, references, and appendices. The agent follows explicit continuation cursors to read the whole document, inspects figures as images, and can save the papers in Zotero.
 
 [![CI](https://github.com/aytzey/paper-pilot/actions/workflows/ci.yml/badge.svg)](https://github.com/aytzey/paper-pilot/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/aytzey/paper-pilot)](https://github.com/aytzey/paper-pilot/releases)
@@ -31,7 +31,7 @@ uvx --from git+https://github.com/aytzey/paper-pilot paper-pilot demo "retrieval
 uvx paper-pilot demo "retrieval augmented generation"
 ```
 
-This searches 6 academic databases, downloads the open-access PDFs, reads them, writes a structured report, and opens an **interactive citation graph** in your browser.
+This searches 6 academic databases, downloads open-access PDFs, extracts their text into a reading pack, and opens an **interactive citation graph** in your browser. The demo does not run an LLM or produce a completed full-paper synthesis.
 
 👉 **See a real run, no install needed:** [sample report](examples/sample-report.md) · [interactive citation graph](examples/sample-citation-graph.html)
 
@@ -66,25 +66,86 @@ Your AI will:
 
 1. Search **Semantic Scholar**, **OpenAlex**, **arXiv**, **Crossref**, **Europe PMC**, and **DOAJ**
 2. Find the open-access PDFs, not abstracts
-3. Download and read them cover to cover
+3. Download PDFs and read every `read_pdf_text` batch until `next_cursor` is `null`
 4. Extract evidence chunks with source attribution
-5. Give the model every PDF's local path to open on demand, and render pages as images or embed the PDF when you ask for it
+5. Inspect figures/tables as page images when needed
 6. Write a structured Markdown report
-7. Save everything into your **Zotero** library
+7. Optionally save the papers into your **Zotero** library
 
 ---
 
-## vs. alternatives
+## Read the whole paper in Codex or Claude
 
-| | ChatGPT Deep Research | Gemini Deep Research | Perplexity Pro | **Paper Pilot** |
-|---|---|---|---|---|
-| Reads actual PDFs | Web summaries | Web summaries | Web summaries | **Full text extraction** |
-| Figures and tables | Text only | Text only | Text only | **Page rendering to PNG** |
-| Your library | Locked in their UI | Locked in Google | Locked in Perplexity | **Syncs to Zotero** |
-| Sources | Generic web search | Generic web search | Web search | **6 academic databases** |
-| Cost | $200/month | $20/month | $20/month | **Free, MIT licensed** |
-| Your data | Their cloud | Their cloud | Their cloud | **Your machine** |
-| Open source | No | No | No | **Yes** |
+Ask your agent:
+
+> Find papers on <topic>. Use deep_read_topic, read each deep_reads[*].full_text batch,
+> then call read_pdf_text with its pdf_path and next_cursor until null. Read every page,
+> including references and appendices. Render figures and tables. Report unreadable pages
+> and cite PDF page numbers; do not substitute abstracts or top_chunks for a full read.
+
+`deep_read_topic` and `extract_local_pdf_text` deliver the first sequential text batch automatically.
+For a specific PDF URL, call `inspect_open_access_pdf`, then `read_pdf_text` on its returned `pdf_path`.
+Continue with the same path and the returned `start_page` / `start_char`. Each response carries at most
+12,000 text characters by default; even an oversized page continues at the exact character.
+
+The agent can request the **original PDF whenever the task needs it**, without first finishing text
+reading: call `read_pdf_document`, then open the returned local file or fetch its MCP resource link
+to receive the PDF bytes. Set `embed_base64=true` when the client supports embedded PDFs (within the
+tool's size/page limits). Choose text, the PDF, or page images based on the task; receiving the file
+alone does not establish that it was read.
+
+| Reading option | What reaches the model | Use |
+|---|---|---|
+| Abstract / `top_chunks` | Summary or selected, shortened excerpts | Discovery and navigation |
+| `read_pdf_text` | Consecutive page text with a continuation cursor | Full-text reading in any MCP client |
+| `render_pdf_pages` | Page images | Figures, tables, formulas, extraction checks |
+| Local PDF / embedded PDF | File path or optional PDF bytes | Clients that support direct PDF inspection |
+
+`extraction_status` and `pages_without_text` expose extraction gaps. PDFs need an extractable text layer;
+pages without one are reported as unreadable. Text extraction can miss layout or symbols:
+inspect relevant page images and disclose gaps.
+PDFs are stored locally; returned text/images are sent to the configured AI client.
+
+`end_of_document` means the cursor reached the end. It does **not** certify that the agent read earlier
+batches. Reading packs and reports contain excerpts, and must not be presented as completed syntheses.
+
+## Research a practical decision
+
+For example: “I want to build a cheap circuit to measure plant-soil pH. Research the relevant
+soil science, electrode materials and electronics, starting with recent work, and recommend
+an approach I can build and validate.”
+
+The MCP initialization instructions guide the agent to clarify the decision, split it into
+discipline-specific questions, search recent work and foundational references, fully read decisive
+papers, seek contradictory evidence, and compare alternatives under comparable conditions.
+The final recommendation should include sources/pages, rejected alternatives, unresolved questions
+and a first validation experiment. The agent performs the reasoning; the server supplies access
+and reading tools. Instruction delivery alone does not guarantee the agent followed every step.
+
+Start each discovery query with:
+
+```python
+search_literature(
+    topic="soil pH reference electrode stability",
+    sort_by="newest",
+    open_access_only=False,
+    limit_per_source=5,
+)
+```
+
+Inspect `source_status`. To go deeper in one database, pass its `next_request` arguments back
+to `search_literature` unchanged. A failed source has a `retry_request`; failure is not exhaustion.
+Download the selected paper with `inspect_open_access_pdf(pdf_url=..., doi=...)`, then read its
+text/PDF. This preserves the selection instead of rerunning a broad download pipeline.
+
+`newest` requests native date ordering: publication dates where available, first submission for
+arXiv, and year precision for DOAJ. Each record includes its date precision and source; partial
+dates are not padded with invented days. Crossref date paging stops at 10,000 records; narrow
+the query/year range to continue. Results cover returned provider pages, not the entire literature
+in global date order. Metadata may be cached for `CACHE_TTL_SEC`; access and coverage gaps stay visible.
+The existing default remains relevance ranking and `open_access_only=True`.
+
+The detailed product scope and pH case are in [Research decisions](docs/RESEARCH_DECISIONS.md).
 
 ---
 
@@ -170,6 +231,7 @@ paper-pilot --transport streamable-http --host 127.0.0.1 --port 8000
 | `render_pdf_pages` | Render PDF pages as images the model can see (figures, tables, layout) |
 | `read_pdf_document` | Return a downloaded PDF's local path and resource link (embed base64 only on request) |
 | `get_pdf_page_text` | Exact text of specific PDF pages as JSON, for fine-grained lookups (no base64) |
+| `read_pdf_text` | Sequential full text over MCP with exact continuation cursors |
 | `search_literature` | Fine-grained multi-source academic search (6 databases) |
 | `find_similar_papers` | Related work expansion from a seed paper |
 | `inspect_open_access_pdf` | OA availability check and PDF preview |
@@ -195,9 +257,25 @@ Four additional optional tools (disabled by default) are documented in [docs/EXT
 
 ## Configuration
 
+**Use an available full-paper PDF directly. Unpaywall resolves missing or failed PDFs by DOI.**
+Configure `UNPAYWALL_EMAIL` (falls back to `OPENALEX_EMAIL`) for that fallback;
+working PDF downloads do not require it. A URL is tried before making an extra lookup.
+The integration follows the DOI/location model in the [roadoi guide](https://cran.r-project.org/web/packages/roadoi/vignettes/intro.html)
+using the existing Python Unpaywall v2 client; no R installation is needed.
+
+When Unpaywall is needed, downloads try `best_oa_location` and then other `oa_locations` PDF URLs.
+Landing pages and embargoed future locations are not treated as downloadable PDFs.
+`paper.raw.unpaywall` exposes lookup status, OA locations and licensing metadata;
+`paper.raw.pdf_download` identifies the copy actually downloaded. Missing email is reported only
+for records needing Unpaywall; it does not block working PDFs. API failures are reported even
+when OpenAlex supplies a fallback. DOI-less search records are marked
+`not_applicable` and keep their direct OA access. Valid cached Unpaywall responses can be reused.
+An openable PDF might still be a cover or abstract: the agent must inspect the content. In that case,
+call `inspect_open_access_pdf(doi="...", pdf_url=None)` to request Unpaywall alternatives explicitly.
+
 ```bash
 OPENALEX_EMAIL=you@example.com        # Required for polite API access
-UNPAYWALL_EMAIL=you@example.com       # Required for OA resolution
+UNPAYWALL_EMAIL=you@example.com       # Required when Unpaywall fallback is needed
 SEMANTIC_SCHOLAR_API_KEY=             # Optional, higher rate limits
 
 # Local Zotero

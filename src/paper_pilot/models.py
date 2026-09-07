@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -71,6 +71,23 @@ def utc_timestamp() -> str:
     return datetime.now(tz=UTC).strftime("%Y%m%d-%H%M%S")
 
 
+def normalize_publication_date(value: Any) -> str | None:
+    """Keep only supplied year/month/day precision; reject malformed calendar dates."""
+    if isinstance(value, list):
+        if not 1 <= len(value) <= 3 or any(type(part) is not int for part in value):
+            return None
+        value = "-".join(f"{part:04d}" if i == 0 else f"{part:02d}" for i, part in enumerate(value))
+    value = f"{value:04d}" if type(value) is int else str(value or "")
+    if not re.fullmatch(r"\d{4}(?:-\d{2}(?:-\d{2})?)?", value):
+        return None
+    parts = [int(part) for part in value.split("-")]
+    try:
+        date(*parts, *([1] * (3 - len(parts))))
+    except ValueError:
+        return None
+    return value
+
+
 @dataclass(slots=True)
 class PaperRecord:
     source: str
@@ -88,6 +105,15 @@ class PaperRecord:
     keywords: list[str] = field(default_factory=list)
     related_score: float | None = None
     raw: dict[str, Any] = field(default_factory=dict)
+    publication_date: str | None = None
+    publication_date_source: str | None = None
+
+    def date_evidence(self) -> list[dict[str, str]]:
+        if "publication_dates" in self.raw:
+            return self.raw["publication_dates"]
+        if not self.publication_date:
+            return []
+        return [{"date": self.publication_date, "source": self.publication_date_source or self.source}]
 
     def dedupe_key(self) -> str:
         doi = normalize_doi(self.doi)
@@ -134,6 +160,10 @@ class PaperRecord:
             "authors": self.authors,
             "abstract": self.abstract,
             "year": self.year,
+            "publication_date": self.publication_date,
+            "publication_date_precision": {4: "year", 7: "month", 10: "day"}.get(len(self.publication_date or "")),
+            "publication_date_source": self.publication_date_source,
+            "publication_dates": self.date_evidence(),
             "venue": self.venue,
             "doi": self.doi,
             "url": self.url,
@@ -196,6 +226,8 @@ class DeepReadArtifact:
     full_text_char_count: int
     extracted_preview: str
     chunks: list[TextChunk] = field(default_factory=list)
+    extraction_status: str = "unknown"
+    pages_without_text: list[int] = field(default_factory=list)
 
     def to_dict(self, top_chunks: int = 5, max_chunk_chars: int = 1200) -> dict[str, Any]:
         ranked = sorted(
@@ -210,6 +242,9 @@ class DeepReadArtifact:
             "chunk_manifest_path": str(self.chunk_manifest_path),
             "page_count": self.page_count,
             "full_text_char_count": self.full_text_char_count,
+            "extraction_status": self.extraction_status,
+            "pages_without_text": self.pages_without_text,
+            "reading_scope": "ranked_excerpts",
             "extracted_preview": self.extracted_preview,
             "chunk_count": len(self.chunks),
             "top_chunks": [chunk.to_dict(max_chars=max_chunk_chars) for chunk in ranked[:top_chunks]],
@@ -224,6 +259,11 @@ def combine_papers(records: list[PaperRecord]) -> list[PaperRecord]:
             combined[key] = record
             continue
         existing = combined[key]
+        dated = existing if existing.publication_date else record
+        # Refine a compatible partial date; keep conflicting provider dates as evidence.
+        if record.publication_date and record.publication_date.startswith(existing.publication_date or ""):
+            dated = record
+        dates = existing.date_evidence() + [d for d in record.date_evidence() if d not in existing.date_evidence()]
         combined[key] = PaperRecord(
             source=existing.source if existing.rank_score() >= record.rank_score() else record.source,
             source_id=existing.source_id if existing.rank_score() >= record.rank_score() else record.source_id,
@@ -239,6 +279,13 @@ def combine_papers(records: list[PaperRecord]) -> list[PaperRecord]:
             is_open_access=existing.is_open_access or record.is_open_access,
             keywords=sorted(set(existing.keywords + record.keywords)),
             related_score=max(existing.related_score or 0.0, record.related_score or 0.0) or None,
-            raw={"merged_sources": sorted({existing.source, record.source})},
+            publication_date=dated.publication_date,
+            publication_date_source=dated.publication_date_source,
+            raw={
+                **record.raw, **existing.raw,
+                "merged_sources": sorted({existing.source, record.source,
+                                          *existing.raw.get("merged_sources", []), *record.raw.get("merged_sources", [])}),
+                "publication_dates": dates,
+            },
         )
     return sorted(combined.values(), key=lambda item: item.rank_score(), reverse=True)
