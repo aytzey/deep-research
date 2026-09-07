@@ -190,3 +190,36 @@ def test_unpaywall_runs_only_when_a_pdf_is_needed(tmp_path: Path, monkeypatch, i
         assert requested[0] == initial_path
     if resolve:
         assert document.paper.raw["unpaywall"]["status"] == "ok"
+
+
+def test_failed_pdf_uses_openalex_when_unpaywall_is_unavailable(tmp_path, monkeypatch):
+    data = _pdf_bytes()
+    requested = []
+
+    def handler(request):
+        requested.append(request.url.path)
+        return httpx.Response(404 if request.url.path == "/broken.pdf" else 200, content=data)
+
+    async def unavailable(self, client, doi):
+        raise httpx.ConnectError("Unpaywall unavailable")
+
+    async def openalex(self, client, doi):
+        return {"id": "W1", "display_name": "Paper", "best_oa_location": {"pdf_url": _PUBLIC_PDF},
+                "open_access": {"is_oa": True, "oa_status": "green"}}
+
+    async def no_delay(seconds):
+        pass
+
+    original_client = httpx.AsyncClient
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: original_client(transport=httpx.MockTransport(handler), **kwargs))
+    monkeypatch.setattr(AcademicSearchService, "_lookup_unpaywall", unavailable)
+    monkeypatch.setattr(AcademicSearchService, "_lookup_openalex_by_doi", openalex)
+    monkeypatch.setattr(asyncio, "sleep", no_delay)
+    failed_url = "https://93.184.216.34/broken.pdf"
+    document = asyncio.run(OpenAccessService(_settings(tmp_path)).inspect_remote_pdf(failed_url, doi="10.1234/test"))
+    assert document.path.read_bytes() == data
+    assert requested == ["/broken.pdf"] * 3 + ["/paper.pdf"]
+    assert document.paper.raw["original_pdf_url"] == failed_url
+    assert document.paper.raw["unpaywall"]["status"] == "error"
+    assert document.paper.raw["pdf_download"]["resolver"] == "openalex"
+    assert any("OpenAlex fallback" in warning for warning in document.paper.raw["access_warnings"])

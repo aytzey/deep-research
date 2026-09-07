@@ -166,6 +166,25 @@ def test_invalid_search_does_not_call_providers(tmp_path, params):
         asyncio.run(service_at(tmp_path).search_literature(**{"topic": "soil", **params}))
 
 
+def test_malformed_provider_cursors_fail_before_network(tmp_path, monkeypatch):
+    def unexpected_client(**kwargs):
+        raise AssertionError("Invalid cursors must fail before contacting providers")
+
+    monkeypatch.setattr(httpx, "AsyncClient", unexpected_client)
+    cases = [
+        ("arxiv", "newest", "abc"), ("arxiv", "newest", "30000"),
+        ("crossref", "newest", "abc"), ("crossref", "newest", "10000"),
+        ("doaj", "newest", "0"), ("semantic_scholar", "relevance", "abc"),
+        ("semantic_scholar", "newest", "{"), ("semantic_scholar", "newest", "[]"),
+        ("semantic_scholar", "newest", '{"offset":true}'),
+        ("semantic_scholar", "newest", '{"offset":1000}'),
+        ("semantic_scholar", "newest", '{"token":2}'),
+    ]
+    for source, order, cursor in cases:
+        with pytest.raises(ValueError):
+            asyncio.run(service_at(tmp_path).search_literature("soil", source=source, sort_by=order, cursor=cursor))
+
+
 def test_expired_search_cache_does_not_hide_outage(tmp_path):
     service = service_at(tmp_path)
     url = "https://api.openalex.org/works"

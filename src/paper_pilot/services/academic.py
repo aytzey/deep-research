@@ -123,6 +123,21 @@ class AcademicSearchService:
             raise ValueError("Unknown search source or sort order.")
         if cursor is not None and (source == "all" or not cursor or len(cursor) > 32768):
             raise ValueError("A nonempty cursor requires one source and must be at most 32768 characters.")
+        if cursor is not None:
+            if source == "semantic_scholar" and sort_by == "newest":
+                state = json.loads(cursor)
+                if (not isinstance(state, dict)
+                        or type(state.get("offset", 0)) is not int
+                        or not 0 <= state.get("offset", 0) < 1000
+                        or (state.get("token") is not None and not isinstance(state["token"], str))):
+                    raise ValueError("Invalid Semantic Scholar bulk cursor.")
+            else:
+                bounds = {"arxiv": (0, 30000), "doaj": (1, 1000001),
+                          "semantic_scholar": (0, 1000)}.get(source)
+                if source == "crossref" and sort_by == "newest":
+                    bounds = (0, 10000)
+                if bounds and (not cursor.isdecimal() or not bounds[0] <= int(cursor) < bounds[1]):
+                    raise ValueError(f"Invalid {source} page cursor; narrow the query if its result limit was reached.")
         selected = SOURCES if source == "all" else (source,)
         request = dict(topic=topic, limit_per_source=limit_per_source, from_year=from_year,
                        to_year=to_year, open_access_only=open_access_only, sort_by=sort_by)
@@ -792,7 +807,9 @@ class AcademicSearchService:
             record.year = record.year or openalex_record.year
             record.venue = record.venue or openalex_record.venue
             record.url = record.url or openalex_record.url
-            record.pdf_url = record.pdf_url or openalex_record.pdf_url
+            if openalex_record.pdf_url:
+                record.raw = {**record.raw, "original_pdf_url": record.raw.get("original_pdf_url") or record.pdf_url}
+                record.pdf_url = openalex_record.pdf_url
             record.citation_count = max(record.citation_count or 0, openalex_record.citation_count or 0) or None
             record.is_open_access = record.is_open_access or openalex_record.is_open_access or bool(record.pdf_url)
             record.keywords = sorted(set(record.keywords + openalex_record.keywords))
@@ -802,6 +819,7 @@ class AcademicSearchService:
                 "openalex_doi_lookup": {
                     "id": payload.get("id"),
                     "oa_status": ((payload.get("open_access") or {}).get("oa_status")),
+                    "pdf_url": openalex_record.pdf_url,
                 },
             }
         return records, warnings

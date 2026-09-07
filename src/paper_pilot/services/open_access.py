@@ -128,9 +128,12 @@ class OpenAccessService:
         tmp.replace(destination)
         paper.pdf_url = url
         location = next((item for item in locations if item.get("url_for_pdf") == url), None)
+        resolver = "unpaywall" if location else paper.source
+        if not location and (paper.raw.get("openalex_doi_lookup") or {}).get("pdf_url") == url:
+            resolver = "openalex"
         paper.raw = {
             **paper.raw,
-            "pdf_download": {"url": url, "resolver": "unpaywall" if location else paper.source, "location": location},
+            "pdf_download": {"url": url, "resolver": resolver, "location": location},
         }
         return destination
 
