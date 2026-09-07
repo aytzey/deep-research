@@ -746,13 +746,6 @@ class AcademicSearchService:
                 record.raw = {**record.raw, "unpaywall": {"status": "deferred", "reason": "try_existing_pdf_first"}}
         if not unique_dois:
             return records, []
-        if not self.settings.unpaywall_email or not self.settings.unpaywall_email.strip():
-            message = "Unpaywall fallback needs UNPAYWALL_EMAIL (or OPENALEX_EMAIL)."
-            for record in records:
-                if self._doi_for_oa_lookup(record.doi) in unique_dois and (force_lookup or not record.pdf_url):
-                    record.raw = {**record.raw, "unpaywall": {"status": "error", "error": message}}
-            return records, [message]
-
         lookup_semaphore = asyncio.Semaphore(4)
         results = await asyncio.gather(
             *(self._lookup_oa_metadata(client, doi, lookup_semaphore) for doi in unique_dois),
@@ -837,18 +830,19 @@ class AcademicSearchService:
         semaphore: asyncio.Semaphore,
     ) -> tuple[str, dict[str, Any], str | None]:
         async with semaphore:
-            unpaywall_error: Exception | None = None
-            try:
-                return "unpaywall", await self._lookup_unpaywall(client, doi), None
-            except Exception as exc:
-                unpaywall_error = exc
+            unpaywall_error = "Unpaywall fallback needs UNPAYWALL_EMAIL (or OPENALEX_EMAIL)."
+            if self.settings.unpaywall_email and self.settings.unpaywall_email.strip():
+                try:
+                    return "unpaywall", await self._lookup_unpaywall(client, doi), None
+                except Exception as exc:
+                    unpaywall_error = type(exc).__name__
 
             try:
-                return "openalex", await self._lookup_openalex_by_doi(client, doi), type(unpaywall_error).__name__
+                return "openalex", await self._lookup_openalex_by_doi(client, doi), unpaywall_error
             except Exception as fallback_exc:
                 raise RuntimeError(
                     "unpaywall="
-                    f"{type(unpaywall_error).__name__}; "
+                    f"{unpaywall_error}; "
                     "openalex="
                     f"{type(fallback_exc).__name__}"
                 ) from fallback_exc

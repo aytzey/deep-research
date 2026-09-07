@@ -248,3 +248,31 @@ def test_previous_unpaywall_error_can_recover_after_pdf_failure(tmp_path, monkey
     documents, _ = asyncio.run(OpenAccessService(_settings(tmp_path)).download_best_papers("topic", [paper]))
     assert len(documents) == 1 and documents[0].path.read_bytes() == data
     assert calls == [paper.doi] and paper.raw["unpaywall"]["status"] == "ok"
+
+
+@pytest.mark.parametrize("initial_path", [None, "/broken.pdf"])
+def test_unconfigured_unpaywall_still_uses_openalex(tmp_path, monkeypatch, initial_path):
+    data = _pdf_bytes()
+    requested = []
+
+    def handler(request):
+        requested.append(request.url.host)
+        assert request.url.host != "api.unpaywall.org"
+        if request.url.host == "api.openalex.org":
+            return httpx.Response(200, json={"id": "W1", "display_name": "Paper",
+                                            "best_oa_location": {"pdf_url": _PUBLIC_PDF}})
+        return httpx.Response(404 if request.url.path == "/broken.pdf" else 200, content=data)
+
+    async def no_delay(seconds):
+        pass
+
+    original_client = httpx.AsyncClient
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: original_client(transport=httpx.MockTransport(handler), **kwargs))
+    monkeypatch.setattr(asyncio, "sleep", no_delay)
+    settings = _settings(tmp_path, unpaywall_email=None, openalex_email=None)
+    url = f"https://93.184.216.34{initial_path}" if initial_path else None
+    document = asyncio.run(OpenAccessService(settings).inspect_remote_pdf(url, doi="10.1234/test"))
+    assert document.path.read_bytes() == data and "api.openalex.org" in requested
+    assert document.paper.raw["pdf_download"]["resolver"] == "openalex"
+    assert "UNPAYWALL_EMAIL" in document.paper.raw["unpaywall"]["error"]
+    assert any("OpenAlex fallback" in warning for warning in document.paper.raw["access_warnings"])
